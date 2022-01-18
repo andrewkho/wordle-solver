@@ -53,6 +53,7 @@ class DQNLightning(LightningModule):
         sync_rate: int = 20,
         replay_size: int = 1000,
         hidden_size: int = 256,
+        num_workers: int = 0,
         warm_start_size: int = 1000,
         eps_last_frame: int = 10000,
         eps_start: float = 1.0,
@@ -217,6 +218,7 @@ class DQNLightning(LightningModule):
         dataloader = DataLoader(
             dataset=dataset,
             batch_size=self.hparams.batch_size,
+            num_workers=self.hparams.num_workers,
         )
         return dataloader
 

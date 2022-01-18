@@ -10,6 +10,7 @@ AVAIL_GPUS = min(1, torch.cuda.device_count())
 def main(
         env: str = "WordleEnv100-v0",
         max_epochs: int = 500,
+        num_workers: int = 0,
         val_check_interval: int = 1000,
         batch_size: int = 64,
         hidden_size: int = 256,
@@ -18,7 +19,8 @@ def main(
         env=env,
         batch_size=batch_size,
         hidden_size=hidden_size,
-        eps_last_frame=int(max_epochs*0.95),
+        num_workers=num_workers,
+        eps_last_frame=int(max_epochs*0.6),
     )
     trainer = Trainer(
         gpus=AVAIL_GPUS,

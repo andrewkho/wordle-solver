@@ -27,3 +27,9 @@ register(
     entry_point="deep_q.wordle:WordleEnv1000",
     max_episode_steps=1000,
 )
+
+register(
+    id="WordleEnv-v0",
+    entry_point="deep_q.wordle:WordleEnv",
+    max_episode_steps=1000,
+)
