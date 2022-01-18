@@ -11,9 +11,14 @@ def main(
         env: str = "WordleEnv100-v0",
         max_epochs: int = 500,
         val_check_interval: int = 1000,
+        batch_size: int = 64,
+        hidden_size: int = 256,
 ):
     model = DQNLightning(
-        env=env
+        env=env,
+        batch_size=batch_size,
+        hidden_size=hidden_size,
+        eps_last_frame=int(max_epochs*0.95),
     )
     trainer = Trainer(
         gpus=AVAIL_GPUS,

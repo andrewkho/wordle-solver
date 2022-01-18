@@ -50,8 +50,9 @@ class DQNLightning(LightningModule):
         lr: float = 1e-2,
         env: str = "WordleEnv-v0",
         gamma: float = 0.9,
-        sync_rate: int = 10,
+        sync_rate: int = 20,
         replay_size: int = 1000,
+        hidden_size: int = 256,
         warm_start_size: int = 1000,
         eps_last_frame: int = 10000,
         eps_start: float = 1.0,
@@ -88,8 +89,8 @@ class DQNLightning(LightningModule):
 
         print("dqn:", self.env.spec.id, self.env.spec.max_episode_steps, n_actions, obs_size)
 
-        self.net = DQN(obs_size, n_actions)
-        self.target_net = DQN(obs_size, n_actions)
+        self.net = DQN(obs_size, n_actions, hidden_size=hidden_size)
+        self.target_net = DQN(obs_size, n_actions, hidden_size=hidden_size)
 
         self.buffer = ReplayBuffer(self.hparams.replay_size)
         self.agent = Agent(self.env, self.buffer)
@@ -155,7 +156,7 @@ class DQNLightning(LightningModule):
         device = self.get_device(batch)
         epsilon = max(
             self.hparams.eps_end,
-            self.hparams.eps_start - self.global_step * 1 / self.hparams.eps_last_frame,
+            self.hparams.eps_start - self.global_step / self.hparams.eps_last_frame,
         )
 
         # step through environment with agent
