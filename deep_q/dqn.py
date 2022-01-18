@@ -21,7 +21,7 @@ PATH_DATASETS = os.environ.get("PATH_DATASETS", ".")
 class DQN(nn.Module):
     """Simple MLP network."""
 
-    def __init__(self, obs_size: int, n_actions: int, hidden_size: int = 128):
+    def __init__(self, obs_size: int, n_actions: int, hidden_size: int = 256):
         """
         Args:
             obs_size: observation/state size of the environment
@@ -30,8 +30,9 @@ class DQN(nn.Module):
         """
         super().__init__()
         self.net = nn.Sequential(
-            #nn.Linear(obs_size, n_actions)  # Start with linear regressino
             nn.Linear(obs_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, n_actions),
         )
@@ -55,7 +56,7 @@ class DQNLightning(LightningModule):
         eps_last_frame: int = 10000,
         eps_start: float = 1.0,
         eps_end: float = 0.01,
-        episode_length: int = 100,
+        episode_length: int = 25,
         warm_start_steps: int = 1000,
     ) -> None:
         """
@@ -198,6 +199,9 @@ class DQNLightning(LightningModule):
                 self.writer.add_scalar("lose_ratio", self._losses/(self._wins+self._losses), global_step=self.global_step)
             if self._wins > 0:
                 self.writer.add_scalar("avg_winning_turns", self._winning_steps/self._wins, global_step=self.global_step)
+            self._winning_steps = 0
+            self._wins = 0
+            self._losses = 0
 
         return OrderedDict({"loss": loss, "log": log, "progress_bar": status})
 
