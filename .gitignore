@@ -1,3 +1,5 @@
 *.pyc
 env
 .idea
+lightning_logs
+runs
