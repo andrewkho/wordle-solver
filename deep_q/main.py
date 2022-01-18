@@ -7,14 +7,18 @@ from deep_q.dqn import DQNLightning
 AVAIL_GPUS = min(1, torch.cuda.device_count())
 
 
-def main(env: str = "WordleEnv100-v0"):
+def main(
+        env: str = "WordleEnv100-v0",
+        max_epochs: int = 500,
+        val_check_interval: int = 1000,
+):
     model = DQNLightning(
         env=env
     )
     trainer = Trainer(
         gpus=AVAIL_GPUS,
-        max_epochs=10000,
-        val_check_interval=100,
+        max_epochs=max_epochs,
+        val_check_interval=val_check_interval,
     )
 
     trainer.fit(model)
