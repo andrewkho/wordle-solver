@@ -111,7 +111,7 @@ class WordleEnvBase(gym.Env):
             self.done = True
             reward = -REWARD
 
-        return np.array(self.state, dtype=np.float32).copy(), reward, self.done, {}
+        return np.array(self.state, dtype=np.int32).copy(), reward, self.done, {}
 
     def reset(self, seed: Optional[int] = None):
         #super().reset()
@@ -122,7 +122,7 @@ class WordleEnvBase(gym.Env):
         #self.goal_word = 7
         #self.goal_word = int(random.uniform(0, len(self.words)))
 
-        return np.array(self.state, dtype=np.float32).copy()
+        return np.array(self.state, dtype=np.int32).copy()
 
     def getCharsFromAction(self, action: int) -> np.ndarray:
         return self.word_array[action, :]
