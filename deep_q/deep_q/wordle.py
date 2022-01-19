@@ -1,8 +1,7 @@
-import random
 from typing import Optional, List
 
 import gym
-from gym import spaces, logger
+from gym import spaces
 import numpy as np
 
 VALID_WORDS_PATH = '../data/wordle_words.txt'
