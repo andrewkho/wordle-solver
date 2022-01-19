@@ -8,6 +8,7 @@ import torch
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.utilities import DistributedType
 from torch import Tensor, nn
+from torch.nn.functional import one_hot
 from torch.optim import Adam, Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -18,10 +19,10 @@ from deep_q.experience import ReplayBuffer, RLDataset
 PATH_DATASETS = os.environ.get("PATH_DATASETS", ".")
 
 
-class DQN(nn.Module):
+class DQN2(nn.Module):
     """Simple MLP network."""
 
-    def __init__(self, obs_size: int, n_actions: int, hidden_size: int = 256):
+    def __init__(self, obs_size: int, n_actions: int, word_list: List[str], hidden_size: int = 256):
         """
         Args:
             obs_size: observation/state size of the environment
@@ -29,16 +30,48 @@ class DQN(nn.Module):
             hidden_size: size of hidden layers
         """
         super().__init__()
-        self.net = nn.Sequential(
+        self.f0 = nn.Sequential(
             nn.Linear(obs_size, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, n_actions),
+            nn.Softmax(),
         )
 
     def forward(self, x):
-        return self.net(x.float())
+        return self.f0(x.float())
+
+
+class DQN(nn.Module):
+    """Simple MLP network."""
+
+    def __init__(self, obs_size: int, n_actions: int, word_list: List[str], hidden_size: int = 256):
+        """
+        Args:
+            obs_size: observation/state size of the environment
+            n_actions: number of discrete actions available in the environment
+            hidden_size: size of hidden layers
+        """
+        super().__init__()
+        word_width = 26*5
+        self.f0 = nn.Sequential(
+            nn.Linear(obs_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, word_width),
+        )
+        word_array = np.zeros((word_width, len(word_list)))
+        for i, word in enumerate(word_list):
+            for j, c in enumerate(word):
+                word_array[j*26 + (ord(c) - ord('A')), i] = 1
+        self.words = torch.Tensor(word_array)#, type=torch.float32)
+
+    def forward(self, x):
+        y = self.f0(x.float())
+        z = torch.tensordot(y, self.words, dims=[(1,), (0,)])
+        return nn.Softmax(dim=1)(z)
 
 
 class DQNLightning(LightningModule):
@@ -46,12 +79,13 @@ class DQNLightning(LightningModule):
 
     def __init__(
         self,
-        batch_size: int = 16,
+        batch_size: int = 1024,
         lr: float = 1e-2,
+        weight_decay: float = 1.e-4,
         env: str = "WordleEnv-v0",
         gamma: float = 0.9,
-        sync_rate: int = 20,
-        replay_size: int = 1000,
+        sync_rate: int = 10,
+        replay_size: int = 10000,
         hidden_size: int = 256,
         num_workers: int = 0,
         warm_start_size: int = 1000,
@@ -90,8 +124,8 @@ class DQNLightning(LightningModule):
 
         print("dqn:", self.env.spec.id, self.env.spec.max_episode_steps, n_actions, obs_size)
 
-        self.net = DQN(obs_size, n_actions, hidden_size=hidden_size)
-        self.target_net = DQN(obs_size, n_actions, hidden_size=hidden_size)
+        self.net = DQN(obs_size, n_actions, hidden_size=hidden_size, word_list=self.env.words)
+        self.target_net = DQN(obs_size, n_actions, hidden_size=hidden_size, word_list=self.env.words)
 
         self.buffer = ReplayBuffer(self.hparams.replay_size)
         self.agent = Agent(self.env, self.buffer)
@@ -199,6 +233,7 @@ class DQNLightning(LightningModule):
             self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
             if self._wins + self._losses > 0:
                 self.writer.add_scalar("lose_ratio", self._losses/(self._wins+self._losses), global_step=self.global_step)
+            self.writer.add_scalar("wins", self._wins, global_step=self.global_step)
             if self._wins > 0:
                 self.writer.add_scalar("avg_winning_turns", self._winning_steps/self._wins, global_step=self.global_step)
             self._winning_steps = 0
@@ -209,7 +244,7 @@ class DQNLightning(LightningModule):
 
     def configure_optimizers(self) -> List[Optimizer]:
         """Initialize Adam optimizer."""
-        optimizer = Adam(self.net.parameters(), lr=self.hparams.lr)
+        optimizer = Adam(self.net.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
         return [optimizer]
 
     def __dataloader(self) -> DataLoader:

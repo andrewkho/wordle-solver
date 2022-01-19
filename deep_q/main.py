@@ -12,15 +12,20 @@ def main(
         max_epochs: int = 500,
         num_workers: int = 0,
         val_check_interval: int = 1000,
-        batch_size: int = 64,
+        batch_size: int = 512,
         hidden_size: int = 256,
+        lr: float = 1.e-3,
+        weight_decay: float = 1.e-5,
+        last_frame_cutoff: float=0.8
 ):
     model = DQNLightning(
         env=env,
+        lr=lr,
+        weight_decay=weight_decay,
         batch_size=batch_size,
         hidden_size=hidden_size,
         num_workers=num_workers,
-        eps_last_frame=int(max_epochs*0.6),
+        eps_last_frame=int(max_epochs*last_frame_cutoff),
     )
     trainer = Trainer(
         gpus=AVAIL_GPUS,

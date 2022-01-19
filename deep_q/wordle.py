@@ -52,10 +52,6 @@ class WordleEnvBase(gym.Env):
     def __init__(self, words: List[str], frequencies: Optional[List[float]]=None):
         assert all(len(w) == WORDLE_N for w in words), f'Not all words of length {WORDLE_N}, {words}'
         self.words = words
-        # self._words_lookup = {c: list() for c in WORDLE_CHARS}
-        # for word in words:
-        #     for c in word:
-        #         self._words_lookup[c].append(word)
 
         self.frequencies = None
         if frequencies:
@@ -63,8 +59,8 @@ class WordleEnvBase(gym.Env):
             self.frequencies = np.array(frequencies, dtype=np.float32) / sum(frequencies)
 
         self.action_space = spaces.Discrete(len(self.words))
-        self.observation_space = spaces.MultiDiscrete([WORDLE_TURNS] + [3]*WORDLE_N*len(WORDLE_CHARS))
-        self._initial_state = np.array([0] + [1]*WORDLE_N*len(WORDLE_CHARS))
+        self.observation_space = spaces.MultiDiscrete([WORDLE_TURNS] + [2]*3*WORDLE_N*len(WORDLE_CHARS))
+        self._initial_state = np.array([0] + [0, 1, 0]*WORDLE_N*len(WORDLE_CHARS))
 
         self.done = True
         self.goal_word: int = -1
@@ -85,39 +81,46 @@ class WordleEnvBase(gym.Env):
                 "True' -- any further steps are undefined behavior."
             )
 
+        word = self.words[action]
+        goal_word = self.words[self.goal_word]
+
+        self.state[0] += 1
+        for i, c in enumerate(word):
+            cint = ord(c) - ord(WORDLE_CHARS[0])
+            offset = 1 + cint*WORDLE_N*3
+            if goal_word[i] == c:
+                self.state[offset+3*i:offset+3*i+3] = [0, 0, 1]
+            elif c in goal_word[i]:
+                self.state[offset:offset+3] = [0, 1, 0]
+            else:
+                self.state[offset:offset+3*WORDLE_N] = 0
+
         reward = 0.
         if action == self.goal_word:
             self.done = True
-            reward = REWARD
-        elif self.state[0] == WORDLE_TURNS-1:
+            if self.state[0] == 1:
+                reward = 0
+            else:
+                reward = REWARD#*(WORDLE_TURNS-self.state[0]+1)/WORDLE_TURNS
+        elif self.state[0] >= WORDLE_TURNS:
             self.done = True
             reward = -REWARD
-        else:
-            word = self.words[action]
-            goal_word = self.words[self.goal_word]
 
-            self.state[0] += 1
-            for i, c in enumerate(word):
-                cint = ord(c) - ord(WORDLE_CHARS[0])
-                offset = 1 + cint*WORDLE_N
-                if goal_word[i] == c:
-                    self.state[offset+i] = 2
-                elif c in goal_word[i]:
-                    self.state[offset+i] = 0
-                else:
-                    self.state[offset:offset+WORDLE_N] = 0
-
-        return np.array(self.state, dtype=np.float32), reward, self.done, {}
+        return np.array(self.state, dtype=np.float32).copy(), reward, self.done, {}
 
     def reset(self, seed: Optional[int] = None):
         #super().reset()
-        self.state = self._initial_state
+        self.state = self._initial_state.copy()
         self.done = False
         # np.random.seed(seed)
         self.goal_word = np.random.choice(len(self.words), p=self.frequencies)
+        #self.goal_word = 7
         #self.goal_word = int(random.uniform(0, len(self.words)))
 
-        return np.array(self.state, dtype=np.float32)
+        return np.array(self.state, dtype=np.float32).copy()
+
+    def getCharsFromAction(self, action: int) -> np.ndarray:
+        return self.word_array[action, :]
 
     # def render(self, mode="human"):
         # screen_width = 600
