@@ -9,11 +9,11 @@ AVAIL_GPUS = min(1, torch.cuda.device_count())
 
 
 def main(
+        resume_from_checkpoint: str = None,
         env: str = "WordleEnv100-v0",
         deep_q_network: str = 'SumChars',
         max_epochs: int = 500,
         num_workers: int = 0,
-        val_check_interval: int = 1000,
         hidden_size: int = 256,
         lr: float = 1.e-3,
         weight_decay: float = 1.e-5,
@@ -39,8 +39,8 @@ def main(
     trainer = Trainer(
         gpus=AVAIL_GPUS,
         max_epochs=max_epochs,
-        # val_check_interval=val_check_interval,
-        enable_checkpointing=True
+        enable_checkpointing=True,
+        resume_from_checkpoint=resume_from_checkpoint,
     )
 
     trainer.fit(model)
