@@ -145,11 +145,12 @@ class DQNLightning(LightningModule):
 
         # step through environment with agent
         reward, done, winning_steps = self.agent.play_step(self.net, epsilon, device)
-        if reward < 0:
-            self._losses += 1
-        elif reward > 0:
-            self._wins += 1
-            self._winning_steps += winning_steps
+        if done:
+            if reward < 0:
+                self._losses += 1
+            else:
+                self._wins += 1
+                self._winning_steps += winning_steps
 
         self.episode_reward += reward
 
