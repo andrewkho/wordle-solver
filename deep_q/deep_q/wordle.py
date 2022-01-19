@@ -1,3 +1,4 @@
+import math
 from typing import Optional, List
 
 import gym
@@ -7,7 +8,6 @@ import numpy as np
 VALID_WORDS_PATH = '../data/wordle_words.txt'
 WORDLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 WORDLE_N = 5
-WORDLE_TURNS = 6
 REWARD = 10
 
 
@@ -48,9 +48,10 @@ class WordleEnvBase(gym.Env):
 
     #metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 50}
 
-    def __init__(self, words: List[str], frequencies: Optional[List[float]]=None):
+    def __init__(self, words: List[str], max_turns: int, frequencies: Optional[List[float]]=None):
         assert all(len(w) == WORDLE_N for w in words), f'Not all words of length {WORDLE_N}, {words}'
         self.words = words
+        self.max_turns = max_turns
 
         self.frequencies = None
         if frequencies:
@@ -58,12 +59,12 @@ class WordleEnvBase(gym.Env):
             self.frequencies = np.array(frequencies, dtype=np.float32) / sum(frequencies)
 
         self.action_space = spaces.Discrete(len(self.words))
-        self.observation_space = spaces.MultiDiscrete([WORDLE_TURNS] + [2]*3*WORDLE_N*len(WORDLE_CHARS))
-        self._initial_state = np.array([0] + [0, 1, 0]*WORDLE_N*len(WORDLE_CHARS))
+        self.observation_space = spaces.MultiDiscrete([self.max_turns] + [2]*3*WORDLE_N*len(WORDLE_CHARS))
+        self._initial_state = np.array([self.max_turns] + [0, 1, 0]*WORDLE_N*len(WORDLE_CHARS))
 
         self.done = True
         self.goal_word: int = -1
-        #
+
         # self.viewer = None
         # self.state = None
         #
@@ -83,7 +84,7 @@ class WordleEnvBase(gym.Env):
         word = self.words[action]
         goal_word = self.words[self.goal_word]
 
-        self.state[0] += 1
+        self.state[0] -= 1
         for i, c in enumerate(word):
             cint = ord(c) - ord(WORDLE_CHARS[0])
             offset = 1 + cint*WORDLE_N*3
@@ -99,32 +100,25 @@ class WordleEnvBase(gym.Env):
             else:
                 self.state[offset:offset+3*WORDLE_N] = [1, 0, 0]*WORDLE_N
 
-        reward = 0.
+        reward = 0
         if action == self.goal_word:
             self.done = True
-            if self.state[0] == 1:
-                reward = 0
+            if self.state[0] == self.max_turns-1:
+                reward = 0  # No reward for guessing off the bat
             else:
-                reward = REWARD#*(WORDLE_TURNS-self.state[0]+1)/WORDLE_TURNS
-        elif self.state[0] >= WORDLE_TURNS:
+                reward = REWARD*math.log(self.state[0] + 1)
+        elif self.state[0] == 0:
             self.done = True
             reward = -REWARD
 
         return np.array(self.state, dtype=np.int32).copy(), reward, self.done, {}
 
     def reset(self, seed: Optional[int] = None):
-        #super().reset()
         self.state = self._initial_state.copy()
         self.done = False
-        # np.random.seed(seed)
         self.goal_word = np.random.choice(len(self.words), p=self.frequencies)
-        #self.goal_word = 7
-        #self.goal_word = int(random.uniform(0, len(self.words)))
 
         return np.array(self.state, dtype=np.int32).copy()
-
-    def getCharsFromAction(self, action: int) -> np.ndarray:
-        return self.word_array[action, :]
 
     # def render(self, mode="human"):
         # screen_width = 600
@@ -199,19 +193,24 @@ class WordleEnvBase(gym.Env):
 
 class WordleEnv10(WordleEnvBase):
     def __init__(self):
-        super().__init__(words=_load_words(10))
+        super().__init__(words=_load_words(10), max_turns=6)
 
 
 class WordleEnv100(WordleEnvBase):
     def __init__(self):
-        super().__init__(words=_load_words(100))
+        super().__init__(words=_load_words(100), max_turns=6)
+
+
+class WordleEnv100Training(WordleEnvBase):
+    def __init__(self):
+        super().__init__(words=_load_words(100), max_turns=100)
 
 
 class WordleEnv1000(WordleEnvBase):
     def __init__(self):
-        super().__init__(words=_load_words(1000))
+        super().__init__(words=_load_words(1000), max_turns=6)
 
 
 class WordleEnv(WordleEnvBase):
     def __init__(self):
-        super().__init__(words=_load_words())
+        super().__init__(words=_load_words(), max_turns=6)

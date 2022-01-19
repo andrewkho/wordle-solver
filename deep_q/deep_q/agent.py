@@ -81,6 +81,6 @@ class Agent:
         self.state = new_state
         winning_steps = -1
         if done:
-            winning_steps = self.state[0]
+            winning_steps = self.env.max_turns - self.state[0]
             self.reset()
         return reward, done, winning_steps

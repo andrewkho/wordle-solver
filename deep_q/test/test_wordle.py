@@ -1,3 +1,5 @@
+import math
+
 import pytest
 
 import deep_q.wordle
@@ -20,7 +22,8 @@ TESTWORDS = [
 @pytest.fixture
 def wordleEnv():
     env = deep_q.wordle.WordleEnvBase(
-        words=TESTWORDS
+        words=TESTWORDS,
+        max_turns=6,
     )
     return env
 
@@ -48,14 +51,16 @@ def test_win_reward(wordleEnv):
     wordleEnv.reset(seed=13)
     goal = wordleEnv.goal_word
     new_state, reward, done, _ = wordleEnv.step((goal+1)%len(wordleEnv.words))
+    assert new_state[0] == wordleEnv.max_turns-1
     assert not done
     assert not wordleEnv.done
     assert reward == 0
 
     new_state, reward, done, _ = wordleEnv.step(goal)
+    assert new_state[0] == wordleEnv.max_turns-2
     assert done
     assert wordleEnv.done
-    assert reward == deep_q.wordle.REWARD
+    assert reward == deep_q.wordle.REWARD*math.log(wordleEnv.max_turns-2+1)
 
     try:
         wordleEnv.step(goal)
@@ -67,13 +72,15 @@ def test_win_reward(wordleEnv):
 def test_lose_reward(wordleEnv):
     wordleEnv.reset(seed=13)
     goal = wordleEnv.goal_word
-    for i in range(1, 6):
+    for i in range(1, wordleEnv.max_turns):
         new_state, reward, done, _ = wordleEnv.step((goal + i) % len(wordleEnv.words))
+        assert new_state[0] == wordleEnv.max_turns-i
         assert not done
         assert not wordleEnv.done
         assert reward == 0
 
-    new_state, reward, done, _ = wordleEnv.step((goal + 6) % len(wordleEnv.words))
+    new_state, reward, done, _ = wordleEnv.step((goal + wordleEnv.max_turns) % len(wordleEnv.words))
+    assert new_state[0] == 0
     assert done
     assert wordleEnv.done
     assert reward == -deep_q.wordle.REWARD
@@ -89,8 +96,9 @@ def test_step(wordleEnv):
     wordleEnv.reset(seed=13)
     wordleEnv.goal_word = 0
 
+
     new_state, reward, done, _ = wordleEnv.step(1)
-    assert new_state[0] == 1
+    assert new_state[0] == wordleEnv.max_turns-1
     # Expect B to be all 1,0,0
     offset = 1+3*5*(ord('B')-ord('A'))
     assert tuple(new_state[offset:offset+15]) == tuple([1, 0, 0]*5)
@@ -119,7 +127,7 @@ def test_step(wordleEnv):
                                                   1,0,0,
                                                   0,1,0)
     new_state, reward, done, _ = wordleEnv.step(1)
-    assert new_state[0] == 2
+    assert new_state[0] == wordleEnv.max_turns-2
     # Expect B to be all 1,0,0
     offset = 1+3*5*(ord('B')-ord('A'))
     assert tuple(new_state[offset:offset+15]) == tuple([1, 0, 0]*5)
@@ -141,7 +149,7 @@ def test_step(wordleEnv):
                                                   0,1,0)
 
     new_state, reward, done, _ = wordleEnv.step(2)
-    assert new_state[0] == 3
+    assert new_state[0] == wordleEnv.max_turns-3
     # Expect B to be all 1,0,0
     offset = 1+3*5*(ord('B')-ord('A'))
     assert tuple(new_state[offset:offset+15]) == tuple([1, 0, 0]*5)
@@ -167,7 +175,7 @@ def test_step(wordleEnv):
                                                   0,1,0)
 
     new_state, reward, done, _ = wordleEnv.step(0)
-    assert new_state[0] == 4
+    assert new_state[0] == wordleEnv.max_turns-4
     assert done
     assert wordleEnv.done
-    assert reward == deep_q.wordle.REWARD
+    assert reward == deep_q.wordle.REWARD*math.log(wordleEnv.max_turns-4+1)

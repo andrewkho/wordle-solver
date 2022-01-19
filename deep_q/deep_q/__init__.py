@@ -23,6 +23,12 @@ register(
 )
 
 register(
+    id="WordleEnv100Training-v0",
+    entry_point="deep_q.wordle:WordleEnv100Training",
+    max_episode_steps=500,
+)
+
+register(
     id="WordleEnv1000-v0",
     entry_point="deep_q.wordle:WordleEnv1000",
     max_episode_steps=1000,

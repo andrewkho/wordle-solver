@@ -67,7 +67,7 @@ class DQNLightning(LightningModule):
         obs_size = self.env.observation_space.shape[0]
         n_actions = self.env.action_space.n
 
-        self._winning_steps = 0
+        self._winning_steps = []
         self._wins = 0
         self._losses = 0
 
@@ -154,7 +154,7 @@ class DQNLightning(LightningModule):
                 self._losses += 1
             else:
                 self._wins += 1
-                self._winning_steps += winning_steps
+                self._winning_steps.append(winning_steps)
 
         self.episode_reward += reward
 
@@ -185,12 +185,14 @@ class DQNLightning(LightningModule):
         if self.global_step % 100 == 0:
             self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
             self.writer.add_scalar("total_games_played", self.total_games_played, global_step=self.global_step)
+
+        if self.global_step % self.env.max_turns*5 == 0:
             if self._wins + self._losses > 0:
                 self.writer.add_scalar("lose_ratio", self._losses/(self._wins+self._losses), global_step=self.global_step)
             self.writer.add_scalar("wins", self._wins, global_step=self.global_step)
             if self._wins > 0:
-                self.writer.add_scalar("avg_winning_turns", self._winning_steps/self._wins, global_step=self.global_step)
-            self._winning_steps = 0
+                self.writer.add_scalar("avg_winning_turns", sum(self._winning_steps)/self._wins, global_step=self.global_step)
+            self._winning_steps = []
             self._wins = 0
             self._losses = 0
 
