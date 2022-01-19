@@ -8,70 +8,16 @@ import torch
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.utilities import DistributedType
 from torch import Tensor, nn
-from torch.nn.functional import one_hot
 from torch.optim import Adam, Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from deep_q.agent import Agent
 from deep_q.experience import ReplayBuffer, RLDataset
+from deep_q.q_networks.embeddingchars import EmbeddingChars
+from deep_q.q_networks.sumchars import SumChars
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", ".")
-
-
-class DQN2(nn.Module):
-    """Simple MLP network."""
-
-    def __init__(self, obs_size: int, n_actions: int, word_list: List[str], hidden_size: int = 256):
-        """
-        Args:
-            obs_size: observation/state size of the environment
-            n_actions: number of discrete actions available in the environment
-            hidden_size: size of hidden layers
-        """
-        super().__init__()
-        self.f0 = nn.Sequential(
-            nn.Linear(obs_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, n_actions),
-            nn.Softmax(),
-        )
-
-    def forward(self, x):
-        return self.f0(x.float())
-
-
-class DQN(nn.Module):
-    """Simple MLP network."""
-
-    def __init__(self, obs_size: int, n_actions: int, word_list: List[str], hidden_size: int = 256):
-        """
-        Args:
-            obs_size: observation/state size of the environment
-            n_actions: number of discrete actions available in the environment
-            hidden_size: size of hidden layers
-        """
-        super().__init__()
-        word_width = 26*5
-        self.f0 = nn.Sequential(
-            nn.Linear(obs_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, word_width),
-        )
-        word_array = np.zeros((word_width, len(word_list)))
-        for i, word in enumerate(word_list):
-            for j, c in enumerate(word):
-                word_array[j*26 + (ord(c) - ord('A')), i] = 1
-        self.words = torch.Tensor(word_array)#, type=torch.float32)
-
-    def forward(self, x):
-        y = self.f0(x.float())
-        z = torch.tensordot(y, self.words, dims=[(1,), (0,)])
-        return nn.Softmax(dim=1)(z)
 
 
 class DQNLightning(LightningModule):
@@ -125,8 +71,10 @@ class DQNLightning(LightningModule):
 
         print("dqn:", self.env.spec.id, self.env.spec.max_episode_steps, n_actions, obs_size)
 
-        self.net = DQN(obs_size, n_actions, hidden_size=hidden_size, word_list=self.env.words)
-        self.target_net = DQN(obs_size, n_actions, hidden_size=hidden_size, word_list=self.env.words)
+        # self.net = SumChars(obs_size, n_actions, hidden_size=hidden_size, word_list=self.env.words)
+        # self.target_net = SumChars(obs_size, n_actions, hidden_size=hidden_size, word_list=self.env.words)
+        self.net = EmbeddingChars(obs_size, n_actions, hidden_size=hidden_size, word_list=self.env.words)
+        self.target_net = EmbeddingChars(obs_size, n_actions, hidden_size=hidden_size, word_list=self.env.words)
 
         self.buffer = ReplayBuffer(self.hparams.replay_size)
         self.agent = Agent(self.env, self.buffer)
