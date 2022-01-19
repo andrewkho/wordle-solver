@@ -13,6 +13,7 @@ def main(
         env: str = "WordleEnv100-v0",
         deep_q_network: str = 'SumChars',
         max_epochs: int = 500,
+        checkpoint_every_n_epochs: int = 1000,
         num_workers: int = 0,
         hidden_size: int = 256,
         lr: float = 1.e-3,
@@ -40,6 +41,7 @@ def main(
         gpus=AVAIL_GPUS,
         max_epochs=max_epochs,
         enable_checkpointing=True,
+        callbacks=[ModelCheckpoint(every_n_epochs=checkpoint_every_n_epochs)],
         resume_from_checkpoint=resume_from_checkpoint,
     )
 
