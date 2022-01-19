@@ -74,7 +74,7 @@ class WordleEnvBase(gym.Env):
         err_msg = f"{action!r} ({type(action)}) invalid"
         assert self.action_space.contains(action), err_msg
         if self.done:
-            logger.warn(
+            raise ValueError(
                 "You are calling 'step()' even though this "
                 "environment has already returned done = True. You "
                 "should always call 'reset()' once you receive 'done = "
@@ -90,10 +90,15 @@ class WordleEnvBase(gym.Env):
             offset = 1 + cint*WORDLE_N*3
             if goal_word[i] == c:
                 self.state[offset+3*i:offset+3*i+3] = [0, 0, 1]
+                for oc in WORDLE_CHARS:
+                    if oc != c:
+                        ocint = ord(oc) - ord(WORDLE_CHARS[0])
+                        oc_offset = 1+ocint*WORDLE_N*3
+                        self.state[oc_offset+3*i:oc_offset+3*i+3] = [1, 0, 0]
             elif c in goal_word[i]:
                 self.state[offset:offset+3] = [0, 1, 0]
             else:
-                self.state[offset:offset+3*WORDLE_N] = 0
+                self.state[offset:offset+3*WORDLE_N] = [1, 0, 0]*WORDLE_N
 
         reward = 0.
         if action == self.goal_word:

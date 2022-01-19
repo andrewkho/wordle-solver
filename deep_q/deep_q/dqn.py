@@ -114,6 +114,7 @@ class DQNLightning(LightningModule):
         self.save_hyperparameters()
 
         self.writer = SummaryWriter()
+        # self.writer.add_hparams(self.hparams)
         self.env = gym.make(self.hparams.env)
         obs_size = self.env.observation_space.shape[0]
         n_actions = self.env.action_space.n
