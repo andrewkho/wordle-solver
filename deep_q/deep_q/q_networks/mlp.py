@@ -1,6 +1,6 @@
 from typing import List
 
-from torch import Tensor, nn
+from torch import nn
 
 
 class MLP(nn.Module):

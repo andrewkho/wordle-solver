@@ -2,7 +2,7 @@ from typing import List
 
 import numpy as np
 import torch
-from torch import Tensor, nn
+from torch import nn
 
 
 class SumChars(nn.Module):
@@ -36,4 +36,3 @@ class SumChars(nn.Module):
     def get_device(self, batch) -> str:
         """Retrieve device currently being used by minibatch."""
         return batch[0].device.index
-

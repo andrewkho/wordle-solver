@@ -12,6 +12,7 @@ from torch.optim import Adam, Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+import deep_q
 from deep_q.agent import Agent
 from deep_q.experience import ReplayBuffer, RLDataset
 from deep_q.q_networks.embeddingchars import EmbeddingChars
@@ -25,6 +26,7 @@ class DQNLightning(LightningModule):
 
     def __init__(
         self,
+        deep_q_network: str = 'SumChars',
         batch_size: int = 1024,
         lr: float = 1e-2,
         weight_decay: float = 1.e-4,
@@ -71,10 +73,10 @@ class DQNLightning(LightningModule):
 
         print("dqn:", self.env.spec.id, self.env.spec.max_episode_steps, n_actions, obs_size)
 
-        # self.net = SumChars(obs_size, n_actions, hidden_size=hidden_size, word_list=self.env.words)
-        # self.target_net = SumChars(obs_size, n_actions, hidden_size=hidden_size, word_list=self.env.words)
-        self.net = EmbeddingChars(obs_size, n_actions, hidden_size=hidden_size, word_list=self.env.words)
-        self.target_net = EmbeddingChars(obs_size, n_actions, hidden_size=hidden_size, word_list=self.env.words)
+        self.net = deep_q.q_networks.construct(
+            self.hparams.deep_q_network, obs_size=obs_size, n_actions=n_actions, hidden_size=hidden_size, word_list=self.env.words)
+        self.target_net = deep_q.q_networks.construct(
+            self.hparams.deep_q_network, obs_size=obs_size, n_actions=n_actions, hidden_size=hidden_size, word_list=self.env.words)
 
         self.buffer = ReplayBuffer(self.hparams.replay_size)
         self.agent = Agent(self.env, self.buffer)

@@ -10,6 +10,7 @@ AVAIL_GPUS = min(1, torch.cuda.device_count())
 
 def main(
         env: str = "WordleEnv100-v0",
+        deep_q_network: str = 'SumChars',
         max_epochs: int = 500,
         num_workers: int = 0,
         val_check_interval: int = 1000,
@@ -23,6 +24,7 @@ def main(
         batch_size: int = 512,
 ):
     model = DQNLightning(
+        deep_q_network=deep_q_network,
         env=env,
         lr=lr,
         weight_decay=weight_decay,
