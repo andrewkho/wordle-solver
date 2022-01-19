@@ -12,19 +12,25 @@ def main(
         max_epochs: int = 500,
         num_workers: int = 0,
         val_check_interval: int = 1000,
-        batch_size: int = 512,
         hidden_size: int = 256,
         lr: float = 1.e-3,
         weight_decay: float = 1.e-5,
-        last_frame_cutoff: float=0.8
+        last_frame_cutoff: float=0.8,
+        max_eps: float=1.,
+        min_eps: float=0.01,
+        episode_length: int = 512,
+        batch_size: int = 512,
 ):
     model = DQNLightning(
         env=env,
         lr=lr,
         weight_decay=weight_decay,
         batch_size=batch_size,
+        episode_length=episode_length,
         hidden_size=hidden_size,
         num_workers=num_workers,
+        eps_start=max_eps,
+        eps_end=min_eps,
         eps_last_frame=int(max_epochs*last_frame_cutoff),
     )
     trainer = Trainer(
