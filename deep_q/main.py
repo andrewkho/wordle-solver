@@ -1,6 +1,7 @@
 import fire
 import torch
 from pytorch_lightning import LightningModule, Trainer
+from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
 from deep_q.dqn import DQNLightning
 
@@ -36,7 +37,8 @@ def main(
     trainer = Trainer(
         gpus=AVAIL_GPUS,
         max_epochs=max_epochs,
-        val_check_interval=val_check_interval,
+        # val_check_interval=val_check_interval,
+        enable_checkpointing=True
     )
 
     trainer.fit(model)

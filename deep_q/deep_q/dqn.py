@@ -80,6 +80,7 @@ class DQNLightning(LightningModule):
         self.agent = Agent(self.env, self.buffer)
         self.total_reward = 0
         self.episode_reward = 0
+        self.total_games_played = 0
         self.populate(self.hparams.warm_start_steps)
 
     def populate(self, steps: int = 1000) -> None:
@@ -146,6 +147,7 @@ class DQNLightning(LightningModule):
         # step through environment with agent
         reward, done, winning_steps = self.agent.play_step(self.net, epsilon, device)
         if done:
+            self.total_games_played += 1
             if reward < 0:
                 self._losses += 1
             else:
@@ -179,8 +181,8 @@ class DQNLightning(LightningModule):
         }
 
         if self.global_step % 100 == 0:
-            self.writer.add_scalar("total_reward", self.total_reward, global_step=self.global_step)
             self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
+            self.writer.add_scalar("total_games_played", self.total_games_played, global_step=self.global_step)
             if self._wins + self._losses > 0:
                 self.writer.add_scalar("lose_ratio", self._losses/(self._wins+self._losses), global_step=self.global_step)
             self.writer.add_scalar("wins", self._wins, global_step=self.global_step)
