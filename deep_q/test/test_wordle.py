@@ -1,5 +1,3 @@
-import math
-
 import pytest
 
 import deep_q.wordle
@@ -60,13 +58,28 @@ def test_win_reward(wordleEnv):
     assert new_state[0] == wordleEnv.max_turns-2
     assert done
     assert wordleEnv.done
-    assert reward == deep_q.wordle.REWARD*math.log(wordleEnv.max_turns-2+1)
+    assert reward == deep_q.wordle.REWARD*(wordleEnv.max_turns-2+1) / wordleEnv.max_turns
 
     try:
         wordleEnv.step(goal)
         raise ValueError("Shouldn't reach here!")
     except ValueError:
         pass
+
+
+def test_win_reward_6(wordleEnv):
+    wordleEnv.reset(seed=13)
+    goal = wordleEnv.goal_word
+
+    for i in range(5):
+        new_state, reward, done, _ = wordleEnv.step((goal+1)%len(wordleEnv.words))
+
+    new_state, reward, done, _ = wordleEnv.step(goal)
+
+    assert wordleEnv.max_turns - new_state[0] == 6
+    assert done
+    assert wordleEnv.done
+    assert reward == deep_q.wordle.REWARD / 6
 
 
 def test_lose_reward(wordleEnv):
@@ -178,4 +191,4 @@ def test_step(wordleEnv):
     assert new_state[0] == wordleEnv.max_turns-4
     assert done
     assert wordleEnv.done
-    assert reward == deep_q.wordle.REWARD*math.log(wordleEnv.max_turns-4+1)
+    assert reward == deep_q.wordle.REWARD*(wordleEnv.max_turns-4+1) / wordleEnv.max_turns

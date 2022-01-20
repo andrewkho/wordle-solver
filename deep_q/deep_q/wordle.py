@@ -70,8 +70,6 @@ class WordleEnvBase(gym.Env):
 
         # self.viewer = None
         # self.state = None
-        #
-        # self.steps_beyond_done = None
 
     def step(self, action):
         err_msg = f"{action!r} ({type(action)}) invalid"
@@ -113,7 +111,7 @@ class WordleEnvBase(gym.Env):
             if self.state[0] == self.max_turns-1:
                 reward = 0  # No reward for guessing off the bat
             else:
-                reward = REWARD*math.log(self.state[0] + 1)
+                reward = REWARD*(self.state[0] + 1) / self.max_turns
         elif self.state[0] == 0:
             self.done = True
             reward = -REWARD
