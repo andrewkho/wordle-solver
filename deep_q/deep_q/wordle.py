@@ -89,6 +89,7 @@ class WordleEnvBase(gym.Env):
             cint = ord(c) - ord(WORDLE_CHARS[0])
             offset = 1 + cint*WORDLE_N*3
             if goal_word[i] == c:
+                # char at position i = yes, all other chars at position i == no
                 self.state[offset+3*i:offset+3*i+3] = [0, 0, 1]
                 for oc in WORDLE_CHARS:
                     if oc != c:
@@ -96,8 +97,10 @@ class WordleEnvBase(gym.Env):
                         oc_offset = 1+ocint*WORDLE_N*3
                         self.state[oc_offset+3*i:oc_offset+3*i+3] = [1, 0, 0]
             elif c in goal_word:
+                # Char at position i = no, other chars stay as they are
                 self.state[offset+3*i:offset+3*i+3] = [1, 0, 0]
             else:
+                # Char at all positions = no
                 self.state[offset:offset+3*WORDLE_N] = [1, 0, 0]*WORDLE_N
 
         reward = 0
