@@ -14,7 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import deep_q
 from deep_q.agent import Agent
-from deep_q.experience import ReplayBuffer, RLDataset
+from deep_q.experience import SequenceReplay, RLDataset
 from deep_q.q_networks.embeddingchars import EmbeddingChars
 from deep_q.q_networks.sumchars import SumChars
 
@@ -33,7 +33,7 @@ class DQNLightning(LightningModule):
         env: str = "WordleEnv-v0",
         gamma: float = 0.9,
         sync_rate: int = 10,
-        replay_size: int = 10000,
+        replay_size: int = 1000,
         hidden_size: int = 256,
         num_workers: int = 0,
         warm_start_size: int = 1000,
@@ -67,7 +67,7 @@ class DQNLightning(LightningModule):
         obs_size = self.env.observation_space.shape[0]
         n_actions = self.env.action_space.n
 
-        self._winning_steps = []
+        self._winning_steps = 0
         self._wins = 0
         self._losses = 0
 
@@ -78,7 +78,7 @@ class DQNLightning(LightningModule):
         self.target_net = deep_q.q_networks.construct(
             self.hparams.deep_q_network, obs_size=obs_size, n_actions=n_actions, hidden_size=hidden_size, word_list=self.env.words)
 
-        self.buffer = ReplayBuffer(self.hparams.replay_size)
+        self.buffer = SequenceReplay(self.hparams.replay_size)
         self.agent = Agent(self.env, self.buffer)
         self.total_reward = 0
         self.episode_reward = 0
@@ -92,8 +92,8 @@ class DQNLightning(LightningModule):
         Args:
             steps: number of random steps to populate the buffer with
         """
-        for i in range(steps):
-            self.agent.play_step(self.net, epsilon=1.0)
+        for _ in range(steps):
+            self.agent.play_game(self.net, epsilon=1.)
 
     def forward(self, x: Tensor) -> Tensor:
         """Passes in a state x through the network and gets the q_values of each action as an output.
@@ -147,14 +147,13 @@ class DQNLightning(LightningModule):
         )
 
         # step through environment with agent
-        reward, done, winning_steps = self.agent.play_step(self.net, epsilon, device)
-        if done:
-            self.total_games_played += 1
-            if reward < 0:
-                self._losses += 1
-            else:
-                self._wins += 1
-                self._winning_steps.append(winning_steps)
+        reward, winning_steps = self.agent.play_game(self.net, epsilon, device)
+        self.total_games_played += 1
+        if reward > 0:
+            self._wins += 1
+            self._winning_steps += winning_steps
+        else:
+            self._losses += 1
 
         self.episode_reward += reward
 
@@ -164,9 +163,8 @@ class DQNLightning(LightningModule):
         if self.trainer._distrib_type in {DistributedType.DP, DistributedType.DDP2}:
             loss = loss.unsqueeze(0)
 
-        if done:
-            self.total_reward = self.episode_reward
-            self.episode_reward = 0
+        self.total_reward = self.episode_reward
+        self.episode_reward = 0
 
         # Soft update of target network
         if self.global_step % self.hparams.sync_rate == 0:
@@ -186,13 +184,11 @@ class DQNLightning(LightningModule):
             self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
             self.writer.add_scalar("total_games_played", self.total_games_played, global_step=self.global_step)
 
-        if self.global_step % self.env.max_turns*5 == 0:
-            if self._wins + self._losses > 0:
-                self.writer.add_scalar("lose_ratio", self._losses/(self._wins+self._losses), global_step=self.global_step)
+            self.writer.add_scalar("lose_ratio", self._losses/(self._wins+self._losses), global_step=self.global_step)
             self.writer.add_scalar("wins", self._wins, global_step=self.global_step)
             if self._wins > 0:
-                self.writer.add_scalar("avg_winning_turns", sum(self._winning_steps)/self._wins, global_step=self.global_step)
-            self._winning_steps = []
+                self.writer.add_scalar("avg_winning_turns", self._winning_steps/self._wins, global_step=self.global_step)
+            self._winning_steps = 0
             self._wins = 0
             self._losses = 0
 

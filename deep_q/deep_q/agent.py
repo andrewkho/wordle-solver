@@ -5,13 +5,13 @@ import torch
 from torch import Tensor, nn
 import gym
 
-from deep_q.experience import ReplayBuffer, Experience
+from deep_q.experience import SequenceReplay, Experience
 
 
 class Agent:
     """Base Agent class handeling the interaction with the environment."""
 
-    def __init__(self, env: gym.Env, replay_buffer: ReplayBuffer) -> None:
+    def __init__(self, env: gym.Env, replay_buffer: SequenceReplay) -> None:
         """
         Args:
             env: training environment
@@ -40,16 +40,35 @@ class Agent:
         if np.random.random() < epsilon:
             action = self.env.action_space.sample()
         else:
-            state = torch.tensor([self.state])
-
-            if device not in ["cpu"]:
-                state = state.cuda(device)
-
+            state = torch.tensor([self.state]).to(device)
             q_values = net(state)
             _, action = torch.max(q_values, dim=1)
             action = int(action.item())
 
         return action
+
+    def play_game(
+            self,
+            net: nn.Module,
+            epsilon: float = 0.0,
+            device: str = "cpu",
+    ) -> Tuple[float, bool]:
+
+        done = False
+        cur_seq = list()
+        reward = 0
+        while not done:
+            reward, done, exp = self.play_step(net, epsilon, device)
+            cur_seq.append(exp)
+
+        winning_steps = self.env.max_turns - self.state[0]
+        if reward > 0:
+            self.replay_buffer.append_winner(cur_seq)
+        else:
+            self.replay_buffer.append_loser(cur_seq)
+        self.reset()
+
+        return reward, winning_steps
 
     @torch.no_grad()
     def play_step(
@@ -57,7 +76,7 @@ class Agent:
             net: nn.Module,
             epsilon: float = 0.0,
             device: str = "cpu",
-    ) -> Tuple[float, bool, int]:
+    ) -> Tuple[float, bool, Experience]:
         """Carries out a single interaction step between the agent and the environment.
 
         Args:
@@ -76,11 +95,5 @@ class Agent:
 
         exp = Experience(self.state, action, reward, done, new_state)
 
-        self.replay_buffer.append(exp)
-
         self.state = new_state
-        winning_steps = -1
-        if done:
-            winning_steps = self.env.max_turns - self.state[0]
-            self.reset()
-        return reward, done, winning_steps
+        return reward, done, exp
