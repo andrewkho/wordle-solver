@@ -184,6 +184,9 @@ class DQNLightning(LightningModule):
             self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
             self.writer.add_scalar("total_games_played", self.total_games_played, global_step=self.global_step)
 
+            self.writer.add_scalar("winner_buffer", len(self.buffer.winners), global_step=self.global_step)
+            self.writer.add_scalar("loser_buffer", len(self.buffer.losers), global_step=self.global_step)
+
             self.writer.add_scalar("lose_ratio", self._losses/(self._wins+self._losses), global_step=self.global_step)
             self.writer.add_scalar("wins", self._wins, global_step=self.global_step)
             if self._wins > 0:
