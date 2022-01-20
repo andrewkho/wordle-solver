@@ -95,7 +95,7 @@ class WordleEnvBase(gym.Env):
                         ocint = ord(oc) - ord(WORDLE_CHARS[0])
                         oc_offset = 1+ocint*WORDLE_N*3
                         self.state[oc_offset+3*i:oc_offset+3*i+3] = [1, 0, 0]
-            elif c in goal_word[i]:
+            elif c in goal_word:
                 self.state[offset:offset+3] = [0, 1, 0]
             else:
                 self.state[offset:offset+3*WORDLE_N] = [1, 0, 0]*WORDLE_N
