@@ -1,3 +1,4 @@
+import pickle
 from collections import deque, namedtuple
 from dataclasses import dataclass
 from typing import Tuple, Any, List
@@ -61,13 +62,22 @@ class SequenceReplay:
         capacity: size of the buffer
     """
 
-    def __init__(self, capacity: int) -> None:
+    def __init__(self, capacity: int, initialize_winning_replays: str=None) -> None:
         self.capacity = capacity
         self.winners = deque(maxlen=capacity//2)
         self.losers = deque(maxlen=capacity//2)
 
+        if initialize_winning_replays:
+            with open(initialize_winning_replays, 'rb') as f:
+                init = pickle.load(f)
+            self.winners.extend(init)
+
     # def __len__(self) -> int:
     #     return len(self.winners) + len(self.losers)
+
+    def save_winners(self, filename: str):
+        with open(filename, 'wb') as f:
+            pickle.dump(self.winners, f)
 
     def append_winner(self, xp_seq: List[Experience]) -> None:
         """Add experience to the buffer.

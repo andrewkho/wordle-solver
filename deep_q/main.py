@@ -1,15 +1,20 @@
+from dataclasses import dataclass
+
 import fire
 import torch
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+from pytorch_lightning.callbacks import Callback
 
 from deep_q.dqn import DQNLightning
+from deep_q.experience import SequenceReplay
 
 AVAIL_GPUS = min(1, torch.cuda.device_count())
 
 
 def main(
         resume_from_checkpoint: str = None,
+        initialize_winning_replays: str = None,
         env: str = "WordleEnv100-v0",
         deep_q_network: str = 'SumChars',
         max_epochs: int = 500,
@@ -25,6 +30,7 @@ def main(
         batch_size: int = 512,
 ):
     model = DQNLightning(
+        initialize_winning_replays=initialize_winning_replays,
         deep_q_network=deep_q_network,
         env=env,
         lr=lr,
@@ -37,11 +43,23 @@ def main(
         eps_end=min_eps,
         eps_last_frame=int(max_epochs*last_frame_cutoff),
     )
+
+    @dataclass
+    class SaveBufferCallback(Callback):
+        buffer: SequenceReplay
+
+        def on_train_end(self, trainer, pl_module):
+            path = f'{trainer.log_dir}/checkpoints'
+            fname = 'sequence_buffer.pkl'
+            self.buffer.save_winners(f'{path}/{fname}')
+
+    save_buffer_callback = SaveBufferCallback(buffer=model.buffer)
+    model_checkpoint = ModelCheckpoint(every_n_epochs=checkpoint_every_n_epochs)
     trainer = Trainer(
         gpus=AVAIL_GPUS,
         max_epochs=max_epochs,
         enable_checkpointing=True,
-        callbacks=[ModelCheckpoint(every_n_epochs=checkpoint_every_n_epochs)],
+        callbacks=[model_checkpoint, save_buffer_callback],
         resume_from_checkpoint=resume_from_checkpoint,
     )
 

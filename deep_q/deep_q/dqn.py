@@ -26,6 +26,7 @@ class DQNLightning(LightningModule):
 
     def __init__(
         self,
+        initialize_winning_replays: str = None,
         deep_q_network: str = 'SumChars',
         batch_size: int = 1024,
         lr: float = 1e-2,
@@ -62,7 +63,6 @@ class DQNLightning(LightningModule):
         self.save_hyperparameters()
 
         self.writer = SummaryWriter()
-        # self.writer.add_hparams(self.hparams)
         self.env = gym.make(self.hparams.env)
         obs_size = self.env.observation_space.shape[0]
         n_actions = self.env.action_space.n
@@ -78,7 +78,7 @@ class DQNLightning(LightningModule):
         self.target_net = deep_q.q_networks.construct(
             self.hparams.deep_q_network, obs_size=obs_size, n_actions=n_actions, hidden_size=hidden_size, word_list=self.env.words)
 
-        self.buffer = SequenceReplay(self.hparams.replay_size)
+        self.buffer = SequenceReplay(self.hparams.replay_size, self.hparams.initialize_winning_replays)
         self.agent = Agent(self.env, self.buffer)
         self.total_reward = 0
         self.episode_reward = 0
