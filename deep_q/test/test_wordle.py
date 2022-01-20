@@ -100,11 +100,11 @@ def test_step(wordleEnv):
     new_state, reward, done, _ = wordleEnv.step(1)
     assert new_state[0] == wordleEnv.max_turns-1
     # Expect B to be all 1,0,0
-    offset = 1+3*5*(ord('B')-ord('A'))
+    offset = 1+26+3*5*(ord('B')-ord('A'))
     assert tuple(new_state[offset:offset+15]) == tuple([1, 0, 0]*5)
 
     # Expect A to be right in position 0 4 and maybe otherwise
-    offset = 1
+    offset = 1+26
     assert tuple(new_state[offset:offset+15]) == (0,0,1,
                                                   1,0,0,
                                                   1,0,0,
@@ -112,7 +112,7 @@ def test_step(wordleEnv):
                                                   0,1,0)
 
     # Expect P to be right in position 2 3 and maybe otherwise
-    offset = 1 + 3*5*(ord('P') - ord('A'))
+    offset = 1 +26+ 3*5*(ord('P') - ord('A'))
     assert tuple(new_state[offset:offset+15]) == (1,0,0,
                                                   0,0,1,
                                                   0,0,1,
@@ -120,7 +120,7 @@ def test_step(wordleEnv):
                                                   0,1,0)
 
     # Expect C to be maybes
-    offset = 1 + 3*5*(ord('C') - ord('A'))
+    offset = 1 +26+ 3*5*(ord('C') - ord('A'))
     assert tuple(new_state[offset:offset+15]) == (1,0,0,
                                                   1,0,0,
                                                   1,0,0,
@@ -129,11 +129,11 @@ def test_step(wordleEnv):
     new_state, reward, done, _ = wordleEnv.step(1)
     assert new_state[0] == wordleEnv.max_turns-2
     # Expect B to be all 1,0,0
-    offset = 1+3*5*(ord('B')-ord('A'))
+    offset = 1+26+3*5*(ord('B')-ord('A'))
     assert tuple(new_state[offset:offset+15]) == tuple([1, 0, 0]*5)
 
     # Expect A to be right in position 0 4 and maybe otherwise
-    offset = 1
+    offset = 1+26
     assert tuple(new_state[offset:offset+15]) == (0,0,1,
                                                   1,0,0,
                                                   1,0,0,
@@ -141,7 +141,7 @@ def test_step(wordleEnv):
                                                   0,1,0)
 
     # Expect P to be right in position 2 3 and maybe otherwise
-    offset = 1 + 3*5*(ord('P') - ord('A'))
+    offset = 1+26 + 3*5*(ord('P') - ord('A'))
     assert tuple(new_state[offset:offset+15]) == (1,0,0,
                                                   0,0,1,
                                                   0,0,1,
@@ -151,15 +151,15 @@ def test_step(wordleEnv):
     new_state, reward, done, _ = wordleEnv.step(2)
     assert new_state[0] == wordleEnv.max_turns-3
     # Expect B to be all 1,0,0
-    offset = 1+3*5*(ord('B')-ord('A'))
+    offset = 1+26+3*5*(ord('B')-ord('A'))
     assert tuple(new_state[offset:offset+15]) == tuple([1, 0, 0]*5)
 
     # Expect C to be all 1,0,0
-    offset = 1+3*5*(ord('C')-ord('A'))
+    offset = 1+26+3*5*(ord('C')-ord('A'))
     assert tuple(new_state[offset:offset+15]) == tuple([1, 0, 0]*5)
 
     # Expect A to be right in position 0 4 and maybe otherwise
-    offset = 1
+    offset = 1+26
     assert tuple(new_state[offset:offset+15]) == (0,0,1,
                                                   1,0,0,
                                                   1,0,0,
@@ -167,7 +167,7 @@ def test_step(wordleEnv):
                                                   0,1,0)
 
     # Expect P to be right in position 2 3 and maybe otherwise
-    offset = 1 + 3*5*(ord('P') - ord('A'))
+    offset = 1+26 + 3*5*(ord('P') - ord('A'))
     assert tuple(new_state[offset:offset+15]) == (1,0,0,
                                                   0,0,1,
                                                   0,0,1,

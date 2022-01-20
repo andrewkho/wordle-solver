@@ -1,4 +1,5 @@
 import math
+from dataclasses import dataclass
 from typing import Optional, List
 
 import gym
@@ -59,8 +60,10 @@ class WordleEnvBase(gym.Env):
             self.frequencies = np.array(frequencies, dtype=np.float32) / sum(frequencies)
 
         self.action_space = spaces.Discrete(len(self.words))
-        self.observation_space = spaces.MultiDiscrete([self.max_turns] + [2]*3*WORDLE_N*len(WORDLE_CHARS))
-        self._initial_state = np.array([self.max_turns] + [0, 1, 0]*WORDLE_N*len(WORDLE_CHARS))
+        self.observation_space = spaces.MultiDiscrete(
+            [self.max_turns] + [2]*len(WORDLE_CHARS) + [2]*3*WORDLE_N*len(WORDLE_CHARS))
+        self._initial_state = np.array(
+            [self.max_turns] + [0]*len(WORDLE_CHARS) + [0, 1, 0]*WORDLE_N*len(WORDLE_CHARS))
 
         self.done = True
         self.goal_word: int = -1
@@ -87,14 +90,15 @@ class WordleEnvBase(gym.Env):
         self.state[0] -= 1
         for i, c in enumerate(word):
             cint = ord(c) - ord(WORDLE_CHARS[0])
-            offset = 1 + cint*WORDLE_N*3
+            offset = 1 + len(WORDLE_CHARS) + cint*WORDLE_N*3
+            self.state[1+cint] = 1
             if goal_word[i] == c:
                 # char at position i = yes, all other chars at position i == no
                 self.state[offset+3*i:offset+3*i+3] = [0, 0, 1]
                 for oc in WORDLE_CHARS:
                     if oc != c:
                         ocint = ord(oc) - ord(WORDLE_CHARS[0])
-                        oc_offset = 1+ocint*WORDLE_N*3
+                        oc_offset = 1 + len(WORDLE_CHARS) + ocint*WORDLE_N*3
                         self.state[oc_offset+3*i:oc_offset+3*i+3] = [1, 0, 0]
             elif c in goal_word:
                 # Char at position i = no, other chars stay as they are
@@ -204,9 +208,9 @@ class WordleEnv100(WordleEnvBase):
         super().__init__(words=_load_words(100), max_turns=6)
 
 
-class WordleEnv100Training(WordleEnvBase):
-    def __init__(self):
-        super().__init__(words=_load_words(100), max_turns=100)
+# class WordleEnv100Training(WordleEnvBase):
+#     def __init__(self):
+#         super().__init__(words=_load_words(100), max_turns=100)
 
 
 class WordleEnv1000(WordleEnvBase):
@@ -214,13 +218,13 @@ class WordleEnv1000(WordleEnvBase):
         super().__init__(words=_load_words(1000), max_turns=6)
 
 
-class WordleEnv1000Training(WordleEnvBase):
-    def __init__(self):
-        super().__init__(words=_load_words(1000), max_turns=100)
+# class WordleEnv1000Training(WordleEnvBase):
+#     def __init__(self):
+#         super().__init__(words=_load_words(1000), max_turns=100)
 
-class WordleEnv1000Training1000(WordleEnvBase):
-    def __init__(self):
-        super().__init__(words=_load_words(1000), max_turns=1000)
+# class WordleEnv1000Training1000(WordleEnvBase):
+#     def __init__(self):
+#         super().__init__(words=_load_words(1000), max_turns=1000)
 
 class WordleEnv(WordleEnvBase):
     def __init__(self):
