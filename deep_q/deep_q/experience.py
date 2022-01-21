@@ -12,14 +12,6 @@ Experience = namedtuple(
     field_names=["state", "action", "reward", "done", "new_state"],
 )
 
-# @dataclass
-# class Experience:
-#     state: Any
-#     action: Any
-#     reward: Any
-#     done: Any
-#     new_state: Any
-#
 
 class ReplayBuffer:
     """Replay Buffer for storing past experiences allowing the agent to learn from them.
@@ -64,58 +56,38 @@ class SequenceReplay:
 
     def __init__(self, capacity: int, initialize_winning_replays: str=None) -> None:
         self.capacity = capacity
-        self.winners = deque(maxlen=capacity//2)
-        self.losers = deque(maxlen=capacity//2)
+        self.buffer = deque(maxlen=capacity)
 
         if initialize_winning_replays:
             with open(initialize_winning_replays, 'rb') as f:
                 init = pickle.load(f)
-            self.winners.extend(init)
+            self.buffer.extend(init)
 
-    # def __len__(self) -> int:
-    #     return len(self.winners) + len(self.losers)
+    def __len__(self) -> int:
+        return len(self.buffer)
 
-    def save_winners(self, filename: str):
+    def save(self, filename: str):
         with open(filename, 'wb') as f:
-            pickle.dump(self.winners, f)
+            pickle.dump(self.buffer, f)
 
-    def append_winner(self, xp_seq: List[Experience]) -> None:
+    def append(self, xp_seq: List[Experience]) -> None:
         """Add experience to the buffer.
 
         Args:
             experience: tuple (state, action, reward, done, new_state)
         """
-        self.winners.append(xp_seq)
+        self.buffer.append(xp_seq)
 
-    def append_loser(self, xp_seq: List[Experience]) -> None:
-        self.losers.append(xp_seq)
-
-    def sample(self, batch_size: int) -> Tuple:
+    def sample(self, batch_size: int) -> List[Experience]:
         xps = []
-        if len(self.winners) > 0:
-            w_indices = np.random.choice(len(self.winners), min(batch_size // 2, len(self.winners)), replace=False)
-            for i in w_indices:
-                xps.extend(self.winners[i])
-                if len(xps) >= batch_size//2:
-                    xps = xps[:batch_size//2]
+        if len(self.buffer) > 0:
+            indices = np.random.choice(len(self.buffer), min(batch_size, len(self.buffer)), replace=False)
+            for i in indices:
+                xps.extend(self.buffer[i])
+                if len(xps) >= batch_size:
+                    xps = xps[:batch_size]
                     break
-
-        l_indices = np.random.choice(len(self.losers), min(batch_size, len(self.losers)), replace=False)
-        for i in l_indices:
-            xps.extend(self.losers[i])
-            if len(xps) >= batch_size:
-                xps = xps[:batch_size]
-                break
-
-        states, actions, rewards, dones, next_states = zip(*(xp for xp in xps))
-
-        return (
-            np.array(states),
-            np.array(actions),
-            np.array(rewards, dtype=np.float32),
-            np.array(dones, dtype=np.bool),
-            np.array(next_states),
-        )
+        return xps
 
 
 class RLDataset(IterableDataset):
@@ -126,12 +98,21 @@ class RLDataset(IterableDataset):
         sample_size: number of experiences to sample at a time
     """
 
-    def __init__(self, buffer: SequenceReplay, sample_size: int = 200) -> None:
-        self.buffer = buffer
+    def __init__(self,
+                 winners: SequenceReplay,
+                 losers: SequenceReplay,
+                 sample_size: int = 200) -> None:
+        self.winners = winners
+        self.losers = losers
         self.sample_size = sample_size
+        assert self.sample_size % 2 == 0
 
     def __iter__(self) -> Tuple:
-        states, actions, rewards, dones, new_states = self.buffer.sample(self.sample_size)
+        xps = self.winners.sample(self.sample_size//2) + self.losers.sample(self.sample_size//2)
+
+        states, actions, rewards, dones, new_states = zip(*xps)
+        rewards = np.array(rewards, dtype=np.float32)
+
         for i in range(len(dones)):
             yield states[i], actions[i], rewards[i], dones[i], new_states[i]
 

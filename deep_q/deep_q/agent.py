@@ -5,22 +5,27 @@ import torch
 from torch import Tensor, nn
 import gym
 
+from deep_q import wordle
 from deep_q.experience import SequenceReplay, Experience
 
 
 class Agent:
     """Base Agent class handeling the interaction with the environment."""
 
-    def __init__(self, env: gym.Env, replay_buffer: SequenceReplay) -> None:
+    def __init__(self,
+                 env: gym.Env,
+                 winner_buffer: SequenceReplay,
+                 loser_buffer: SequenceReplay,
+                 ) -> None:
         """
         Args:
             env: training environment
             replay_buffer: replay buffer storing experiences
         """
         self.env = env
-        self.replay_buffer = replay_buffer
-        self.reset()
-        self.state = self.env.reset()
+        self.winner_buffer = winner_buffer
+        self.loser_buffer = loser_buffer
+        self.state: wordle.WordleState = self.env.reset()
 
     def reset(self) -> None:
         """Resents the environment and updates the state."""
@@ -40,7 +45,7 @@ class Agent:
         if np.random.random() < epsilon:
             action = self.env.action_space.sample()
         else:
-            state = torch.tensor([self.state]).to(device)
+            state = torch.tensor([self.state.vec]).to(device)
             q_values = net(state)
             _, action = torch.max(q_values, dim=1)
             action = int(action.item())
@@ -61,11 +66,11 @@ class Agent:
             reward, done, exp = self.play_step(net, epsilon, device)
             cur_seq.append(exp)
 
-        winning_steps = self.env.max_turns - self.state[0]
+        winning_steps = self.env.max_turns - self.state.remaining_steps()
         if reward > 0:
-            self.replay_buffer.append_winner(cur_seq)
+            self.winner_buffer.append(cur_seq)
         else:
-            self.replay_buffer.append_loser(cur_seq)
+            self.loser_buffer.append(cur_seq)
         self.reset()
 
         return reward, winning_steps
@@ -93,7 +98,7 @@ class Agent:
         # do step in the environment
         new_state, reward, done, _ = self.env.step(action)
 
-        exp = Experience(self.state, action, reward, done, new_state)
+        exp = Experience(self.state.vec, action, reward, done, new_state.vec)
 
         self.state = new_state
         return reward, done, exp

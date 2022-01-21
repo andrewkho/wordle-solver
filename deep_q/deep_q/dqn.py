@@ -78,8 +78,12 @@ class DQNLightning(LightningModule):
         self.target_net = deep_q.q_networks.construct(
             self.hparams.deep_q_network, obs_size=obs_size, n_actions=n_actions, hidden_size=hidden_size, word_list=self.env.words)
 
-        self.buffer = SequenceReplay(self.hparams.replay_size, self.hparams.initialize_winning_replays)
-        self.agent = Agent(self.env, self.buffer)
+        self.dataset = RLDataset(
+            winners=SequenceReplay(self.hparams.replay_size//2, self.hparams.initialize_winning_replays),
+            losers=SequenceReplay(self.hparams.replay_size//2),
+            sample_size=self.hparams.episode_length)
+
+        self.agent = Agent(self.env, self.dataset.winners, self.dataset.losers)
         self.total_reward = 0
         self.episode_reward = 0
         self.total_games_played = 0
@@ -107,7 +111,7 @@ class DQNLightning(LightningModule):
         output = self.net(x)
         return output
 
-    def dqn_mse_loss(self, batch: Tuple[Tensor, Tensor]) -> Tensor:
+    def dqn_mse_loss(self, batch: Tuple) -> Tensor:
         """Calculates the mse loss using a mini batch from the replay buffer.
 
         Args:
@@ -184,8 +188,8 @@ class DQNLightning(LightningModule):
             self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
             self.writer.add_scalar("total_games_played", self.total_games_played, global_step=self.global_step)
 
-            self.writer.add_scalar("winner_buffer", len(self.buffer.winners), global_step=self.global_step)
-            self.writer.add_scalar("loser_buffer", len(self.buffer.losers), global_step=self.global_step)
+            self.writer.add_scalar("winner_buffer", len(self.dataset.winners), global_step=self.global_step)
+            self.writer.add_scalar("loser_buffer", len(self.dataset.losers), global_step=self.global_step)
 
             self.writer.add_scalar("lose_ratio", self._losses/(self._wins+self._losses), global_step=self.global_step)
             self.writer.add_scalar("wins", self._wins, global_step=self.global_step)
@@ -204,9 +208,8 @@ class DQNLightning(LightningModule):
 
     def __dataloader(self) -> DataLoader:
         """Initialize the Replay Buffer dataset used for retrieving experiences."""
-        dataset = RLDataset(self.buffer, self.hparams.episode_length)
         dataloader = DataLoader(
-            dataset=dataset,
+            dataset=self.dataset,
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
         )

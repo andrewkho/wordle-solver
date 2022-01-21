@@ -21,6 +21,63 @@ def _load_words(limit: Optional[int]=None) -> List[str]:
             return lines[:limit]
 
 
+@dataclass
+class WordleState:
+    """
+    Keep the state in a 1D vec to keep it performant.
+    
+    index[0] = remaining steps
+    Rest of data is laid out as binary array
+    
+    [1..27] = whether char has been guessed or not
+
+    [[status, status, status, status, status]
+     for _ in "ABCD..."]
+    where status has codes
+     [1, 0, 0] - char is definitely not in this spot
+     [0, 1, 0] - char is maybe in this spot
+     [0, 0, 1] - char is definitely in this spot
+    """
+    vec: np.ndarray
+
+    @classmethod
+    def get_nvec(cls, max_turns: int):
+        return [max_turns] + [2] * len(WORDLE_CHARS) + [2] * 3 * WORDLE_N * len(WORDLE_CHARS)
+
+    @classmethod
+    def new(cls, max_turns: int):
+        return WordleState(
+            np.array([max_turns] + [0] * len(WORDLE_CHARS) + [0, 1, 0] * WORDLE_N * len(WORDLE_CHARS),
+                     dtype=np.int32)
+        )
+
+    def copy(self):
+        return WordleState(self.vec.copy())
+
+    def remaining_steps(self) -> int:
+        return self.vec[0]
+
+    def update(self, word: str, goal_word: str):
+        self.vec[0] -= 1
+        for i, c in enumerate(word):
+            cint = ord(c) - ord(WORDLE_CHARS[0])
+            offset = 1 + len(WORDLE_CHARS) + cint*WORDLE_N*3
+            self.vec[1+cint] = 1
+            if goal_word[i] == c:
+                # char at position i = yes, all other chars at position i == no
+                self.vec[offset+3*i:offset+3*i+3] = [0, 0, 1]
+                for ocint in range(len(WORDLE_CHARS)):
+                    if ocint != cint:
+                        oc_offset = 1 + len(WORDLE_CHARS) + ocint*WORDLE_N*3
+                        self.vec[oc_offset+3*i:oc_offset+3*i+3] = [1, 0, 0]
+            elif c in goal_word:
+                # Char at position i = no, other chars stay as they are
+                self.vec[offset+3*i:offset+3*i+3] = [1, 0, 0]
+            else:
+                # Char at all positions = no
+                self.vec[offset:offset+3*WORDLE_N] = [1, 0, 0]*WORDLE_N
+
+
 class WordleEnvBase(gym.Env):
     """
     Actions:
@@ -60,16 +117,14 @@ class WordleEnvBase(gym.Env):
             self.frequencies = np.array(frequencies, dtype=np.float32) / sum(frequencies)
 
         self.action_space = spaces.Discrete(len(self.words))
-        self.observation_space = spaces.MultiDiscrete(
-            [self.max_turns] + [2]*len(WORDLE_CHARS) + [2]*3*WORDLE_N*len(WORDLE_CHARS))
-        self._initial_state = np.array(
-            [self.max_turns] + [0]*len(WORDLE_CHARS) + [0, 1, 0]*WORDLE_N*len(WORDLE_CHARS))
+        self.observation_space = spaces.MultiDiscrete(WordleState.get_nvec(self.max_turns))
+        self._initial_state = WordleState.new(self.max_turns)
 
         self.done = True
         self.goal_word: int = -1
 
         # self.viewer = None
-        # self.state = None
+        self.state: WordleState = None
 
     def step(self, action):
         err_msg = f"{action!r} ({type(action)}) invalid"
@@ -82,48 +137,29 @@ class WordleEnvBase(gym.Env):
                 "True' -- any further steps are undefined behavior."
             )
 
-        word = self.words[action]
-        goal_word = self.words[self.goal_word]
-
-        self.state[0] -= 1
-        for i, c in enumerate(word):
-            cint = ord(c) - ord(WORDLE_CHARS[0])
-            offset = 1 + len(WORDLE_CHARS) + cint*WORDLE_N*3
-            self.state[1+cint] = 1
-            if goal_word[i] == c:
-                # char at position i = yes, all other chars at position i == no
-                self.state[offset+3*i:offset+3*i+3] = [0, 0, 1]
-                for oc in WORDLE_CHARS:
-                    if oc != c:
-                        ocint = ord(oc) - ord(WORDLE_CHARS[0])
-                        oc_offset = 1 + len(WORDLE_CHARS) + ocint*WORDLE_N*3
-                        self.state[oc_offset+3*i:oc_offset+3*i+3] = [1, 0, 0]
-            elif c in goal_word:
-                # Char at position i = no, other chars stay as they are
-                self.state[offset+3*i:offset+3*i+3] = [1, 0, 0]
-            else:
-                # Char at all positions = no
-                self.state[offset:offset+3*WORDLE_N] = [1, 0, 0]*WORDLE_N
+        self.state.update(self.words[action],
+                          self.words[self.goal_word])
 
         reward = 0
         if action == self.goal_word:
             self.done = True
-            if self.state[0] == self.max_turns-1:
+            if self.state.remaining_steps() == self.max_turns-1:
                 reward = 0  # No reward for guessing off the bat
             else:
-                reward = REWARD*(self.state[0] + 1) / self.max_turns
-        elif self.state[0] == 0:
+                reward = REWARD*(self.state.remaining_steps() + 1) / self.max_turns
+        elif self.state.remaining_steps() == 0:
             self.done = True
             reward = -REWARD
 
-        return np.array(self.state, dtype=np.int32).copy(), reward, self.done, {}
+        return self.state.copy(), reward, self.done, {}
 
     def reset(self, seed: Optional[int] = None):
-        self.state = self._initial_state.copy()
+        self.state = WordleState.new(self.max_turns)
         self.done = False
         self.goal_word = np.random.choice(len(self.words), p=self.frequencies)
 
-        return np.array(self.state, dtype=np.int32).copy()
+        # return np.array(self.state, dtype=np.int32).copy()
+        return self.state
 
     # def render(self, mode="human"):
         # screen_width = 600
@@ -206,23 +242,10 @@ class WordleEnv100(WordleEnvBase):
         super().__init__(words=_load_words(100), max_turns=6)
 
 
-# class WordleEnv100Training(WordleEnvBase):
-#     def __init__(self):
-#         super().__init__(words=_load_words(100), max_turns=100)
-
-
 class WordleEnv1000(WordleEnvBase):
     def __init__(self):
         super().__init__(words=_load_words(1000), max_turns=6)
 
-
-# class WordleEnv1000Training(WordleEnvBase):
-#     def __init__(self):
-#         super().__init__(words=_load_words(1000), max_turns=100)
-
-# class WordleEnv1000Training1000(WordleEnvBase):
-#     def __init__(self):
-#         super().__init__(words=_load_words(1000), max_turns=1000)
 
 class WordleEnv(WordleEnvBase):
     def __init__(self):

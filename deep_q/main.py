@@ -49,13 +49,14 @@ def main(
     @dataclass
     class SaveBufferCallback(Callback):
         buffer: SequenceReplay
+        filename: str
 
         def on_train_end(self, trainer, pl_module):
             path = f'{trainer.log_dir}/checkpoints'
-            fname = 'sequence_buffer.pkl'
-            self.buffer.save_winners(f'{path}/{fname}')
+            fname = self.filename,
+            self.buffer.save(f'{path}/{fname}')
 
-    save_buffer_callback = SaveBufferCallback(buffer=model.buffer)
+    save_buffer_callback = SaveBufferCallback(buffer=model.dataset.winners, filename='sequence_buffer.pkl')
     model_checkpoint = ModelCheckpoint(every_n_epochs=checkpoint_every_n_epochs)
     trainer = Trainer(
         gpus=AVAIL_GPUS,
