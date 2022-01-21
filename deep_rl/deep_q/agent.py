@@ -2,10 +2,10 @@ from typing import Tuple
 
 import numpy as np
 import torch
-from torch import Tensor, nn
+from torch import nn
 import gym
 
-from deep_q import wordle
+from wordle import wordle
 from deep_q.experience import SequenceReplay, Experience
 
 

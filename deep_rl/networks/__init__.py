@@ -1,6 +1,6 @@
-from deep_q.q_networks.embeddingchars import EmbeddingChars
-from deep_q.q_networks.mlp import MLP
-from deep_q.q_networks.sumchars import SumChars
+from networks.embeddingchars import EmbeddingChars
+from networks.mlp import MLP
+from networks.sumchars import SumChars
 
 _registry = {}
 

@@ -127,8 +127,6 @@ class WordleEnvBase(gym.Env):
         self.state: WordleState = None
 
     def step(self, action):
-        err_msg = f"{action!r} ({type(action)}) invalid"
-        assert self.action_space.contains(action), err_msg
         if self.done:
             raise ValueError(
                 "You are calling 'step()' even though this "
@@ -158,7 +156,6 @@ class WordleEnvBase(gym.Env):
         self.done = False
         self.goal_word = np.random.choice(len(self.words), p=self.frequencies)
 
-        # return np.array(self.state, dtype=np.int32).copy()
         return self.state
 
     # def render(self, mode="human"):
