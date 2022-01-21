@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import fire
 import torch
-from pytorch_lightning import LightningModule, Trainer
+from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks import Callback
 
@@ -22,6 +22,7 @@ def main(
         num_workers: int = 0,
         replay_size: int = 1000,
         hidden_size: int = 256,
+        sync_rate: int = 100,
         lr: float = 1.e-3,
         weight_decay: float = 1.e-5,
         last_frame_cutoff: float=0.8,
@@ -38,6 +39,7 @@ def main(
         weight_decay=weight_decay,
         replay_size=replay_size,
         batch_size=batch_size,
+        sync_rate=sync_rate,
         episode_length=episode_length,
         hidden_size=hidden_size,
         num_workers=num_workers,
