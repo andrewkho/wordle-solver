@@ -11,12 +11,9 @@ from torch.optim import Adam, Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-import wordle
-import networks
+import deep_q
 from deep_q.agent import Agent
 from deep_q.experience import SequenceReplay, RLDataset
-
-PATH_DATASETS = os.environ.get("PATH_DATASETS", ".")
 
 
 class DQNLightning(LightningModule):
@@ -71,9 +68,9 @@ class DQNLightning(LightningModule):
 
         print("dqn:", self.env.spec.id, self.env.spec.max_episode_steps, n_actions, obs_size)
 
-        self.net = networks.construct(
+        self.net = deep_q.construct(
             self.hparams.deep_q_network, obs_size=obs_size, n_actions=n_actions, hidden_size=hidden_size, word_list=self.env.words)
-        self.target_net = networks.construct(
+        self.target_net = deep_q.construct(
             self.hparams.deep_q_network, obs_size=obs_size, n_actions=n_actions, hidden_size=hidden_size, word_list=self.env.words)
 
         self.dataset = RLDataset(
