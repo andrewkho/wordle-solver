@@ -242,44 +242,45 @@ class AdvantageActorCritic(LightningModule):
         batch_rewards = []
         batch_masks = []
         self.episode_reward = 0
-        while not done:
-            action = self.agent(self.state.vec, self.device)[0]
-            next_state, reward, done, _ = self.env.step(action)
+        with torch.no_grad():
+            while not done:
+                action = self.agent(self.state.vec, self.device)[0]
+                next_state, reward, done, _ = self.env.step(action)
 
-            batch_rewards.append(reward)
-            batch_actions.append(action)
-            batch_states.append(self.state.vec)
-            batch_masks.append(done)
-            self.state = next_state
-            self.episode_reward += reward
+                batch_rewards.append(reward)
+                batch_actions.append(action)
+                batch_states.append(self.state.vec)
+                batch_masks.append(done)
+                self.state = next_state
+                self.episode_reward += reward
 
-        returns = []
-        g = 0
-        for r, d in zip(batch_rewards[::-1], batch_masks[::-1]):
-            g = r + self.hparams.gamma * g * (1 - d)
-            returns.append(g)
+            returns = []
+            g = 0
+            for r, d in zip(batch_rewards[::-1], batch_masks[::-1]):
+                g = r + self.hparams.gamma * g * (1 - d)
+                returns.append(g)
 
-        # reverse list and stop the gradients
-        returns = torch.tensor(returns[::-1])
+            # reverse list and stop the gradients
+            returns = torch.tensor(returns[::-1])
 
-        seq = [
-            Experience(*x) for x in zip(batch_states, batch_actions, returns)
-        ]
-        if batch_rewards[-1] > 0:
-            self._winning_steps += self.env.max_turns - self.state.remaining_steps()
-            self._wins += 1
-            self._winning_rewards += self.episode_reward
-            self.dataset.winners.append(seq)
-        else:
-            self._losses += 1
-            self.dataset.losers.append(seq)
+            seq = [
+                Experience(*x) for x in zip(batch_states, batch_actions, returns)
+            ]
+            if batch_rewards[-1] > 0:
+                self._winning_steps += self.env.max_turns - self.state.remaining_steps()
+                self._wins += 1
+                self._winning_rewards += self.episode_reward
+                self.dataset.winners.append(seq)
+            else:
+                self._losses += 1
+                self.dataset.losers.append(seq)
 
-        self._total_rewards += self.episode_reward
+            self._total_rewards += self.episode_reward
 
-        self.done_episodes += 1
-        self.state = self.env.reset()
-        self.total_rewards.append(self.episode_reward)
-        self.avg_rewards = float(np.mean(self.total_rewards[-self.avg_reward_len:]))
+            self.done_episodes += 1
+            self.state = self.env.reset()
+            self.total_rewards.append(self.episode_reward)
+            self.avg_rewards = float(np.mean(self.total_rewards[-self.avg_reward_len:]))
 
     def training_step(self, batch: Tuple[Tensor, Tensor], batch_idx: int) -> OrderedDict:
         """Perform one actor-critic update using a batch of data.
