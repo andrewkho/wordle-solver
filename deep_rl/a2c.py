@@ -15,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import a2c
 from a2c.agent import ActorCriticAgent
-from deep_q.experience import ExperienceSourceDataset
+from a2c.experience import ExperienceSourceDataset, RLDataset, SequenceReplay, Experience
 
 
 class AdvantageActorCritic(LightningModule):
@@ -72,6 +72,11 @@ class AdvantageActorCritic(LightningModule):
             word_list=self.env.words)
         self.agent = ActorCriticAgent(self.net)
 
+        self.dataset = RLDataset(
+            winners=SequenceReplay(self.hparams.replay_size//2),# self.hparams.initialize_winning_replays),
+            losers=SequenceReplay(self.hparams.replay_size//2),
+            sample_size=self.hparams.batch_size)
+
         # Tracking metrics
         self.total_rewards = [0]
         self.episode_reward = 0
@@ -92,6 +97,10 @@ class AdvantageActorCritic(LightningModule):
 
         self.state = self.env.reset()
 
+        # Populate with some samples
+        for _ in range(1000):
+            self.play_game()
+
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         """Passes in a state x through the network and gets the log prob of each action and the value for the state
         as an output.
@@ -109,57 +118,56 @@ class AdvantageActorCritic(LightningModule):
         logprobs, values = self.net(x)
         return logprobs, values
 
-    def train_batch(self) -> Iterator[Tuple[np.ndarray, int, Tensor]]:
-        """Contains the logic for generating a new batch of data to be passed to the DataLoader.
-        Returns:
-            yields a tuple of Lists containing tensors for
-            states, actions, and returns of the batch.
-        Note:
-            This is what's taken by the dataloader:
-            states: a list of numpy array
-            actions: a list of list of int
-            returns: a torch tensor
-        """
-        while True:
-            for _ in range(self.hparams.batch_size):
-                action = self.agent(self.state.vec, self.device)[0]
-
-                next_state, reward, done, _ = self.env.step(action)
-                #print(self.state.remaining_steps(), next_state.remaining_steps())
-
-                self.batch_rewards.append(reward)
-                self.batch_actions.append(action)
-                self.batch_states.append(self.state.vec)
-                self.batch_masks.append(done)
-                self.state = next_state
-                self.episode_reward += reward
-
-                if done:
-                    if action == self.env.goal_word:
-                        self._winning_steps += self.env.max_turns - self.state.remaining_steps()
-                        self._wins += 1
-                        self._winning_rewards += self.episode_reward
-                    else:
-                        self._losses += 1
-
-                    self._total_rewards += self.episode_reward
-
-                    self.done_episodes += 1
-                    self.state = self.env.reset()
-                    self.total_rewards.append(self.episode_reward)
-                    self.episode_reward = 0
-                    self.avg_rewards = float(np.mean(self.total_rewards[-self.avg_reward_len :]))
-
-            _, last_value = self.forward(self.state.vec)
-
-            returns = self.compute_returns(self.batch_rewards, self.batch_masks, last_value)
-            for idx in range(self.hparams.batch_size):
-                yield self.batch_states[idx], self.batch_actions[idx], returns[idx]
-
-            self.batch_states = []
-            self.batch_actions = []
-            self.batch_rewards = []
-            self.batch_masks = []
+    # def train_batch(self) -> Iterator[Tuple[np.ndarray, int, Tensor]]:
+    #     """Contains the logic for generating a new batch of data to be passed to the DataLoader.
+    #     Returns:
+    #         yields a tuple of Lists containing tensors for
+    #         states, actions, and returns of the batch.
+    #     Note:
+    #         This is what's taken by the dataloader:
+    #         states: a list of numpy array
+    #         actions: a list of list of int
+    #         returns: a torch tensor
+    #     """
+    #     while True:
+    #         for _ in range(self.hparams.batch_size):
+    #             action = self.agent(self.state.vec, self.device)[0]
+    #
+    #             next_state, reward, done, _ = self.env.step(action)
+    #
+    #             self.batch_rewards.append(reward)
+    #             self.batch_actions.append(action)
+    #             self.batch_states.append(self.state.vec)
+    #             self.batch_masks.append(done)
+    #             self.state = next_state
+    #             self.episode_reward += reward
+    #
+    #             if done:
+    #                 if action == self.env.goal_word:
+    #                     self._winning_steps += self.env.max_turns - self.state.remaining_steps()
+    #                     self._wins += 1
+    #                     self._winning_rewards += self.episode_reward
+    #                 else:
+    #                     self._losses += 1
+    #
+    #                 self._total_rewards += self.episode_reward
+    #
+    #                 self.done_episodes += 1
+    #                 self.state = self.env.reset()
+    #                 self.total_rewards.append(self.episode_reward)
+    #                 self.episode_reward = 0
+    #                 self.avg_rewards = float(np.mean(self.total_rewards[-self.avg_reward_len :]))
+    #
+    #         _, last_value = self.forward(self.state.vec)
+    #
+    #         returns = self.compute_returns(self.batch_rewards, self.batch_masks, last_value)
+    #         for idx in range(self.hparams.batch_size):
+    #             yield self.batch_states[idx], self.batch_actions[idx], returns[idx]
+    #
+    #         self.batch_states = []
+    #         self.batch_actions = []
+    #         self.batch_rewards = []
+    #         self.batch_masks = []
 
     def compute_returns(
             self,
@@ -217,7 +225,7 @@ class AdvantageActorCritic(LightningModule):
         entropy = self.hparams.entropy_beta * entropy.sum(1).mean()
 
         # actor loss
-        logprobs = logprobs[range(self.hparams.batch_size), actions]
+        logprobs = logprobs[range(len(actions)), actions]
         actor_loss = -(logprobs * advs).mean()
 
         # critic loss
@@ -227,19 +235,72 @@ class AdvantageActorCritic(LightningModule):
         total_loss = actor_loss + critic_loss - entropy
         return total_loss
 
+    def play_game(self):
+        done = False
+        batch_states = []
+        batch_actions = []
+        batch_rewards = []
+        batch_masks = []
+        self.episode_reward = 0
+        while not done:
+            action = self.agent(self.state.vec, self.device)[0]
+            next_state, reward, done, _ = self.env.step(action)
+
+            batch_rewards.append(reward)
+            batch_actions.append(action)
+            batch_states.append(self.state.vec)
+            batch_masks.append(done)
+            self.state = next_state
+            self.episode_reward += reward
+
+        returns = []
+        g = 0
+        for r, d in zip(batch_rewards[::-1], batch_masks[::-1]):
+            g = r + self.hparams.gamma * g * (1 - d)
+            returns.append(g)
+
+        # reverse list and stop the gradients
+        returns = torch.tensor(returns[::-1])
+
+        seq = [
+            Experience(*x) for x in zip(batch_states, batch_actions, returns)
+        ]
+        if batch_rewards[-1] > 0:
+            self._winning_steps += self.env.max_turns - self.state.remaining_steps()
+            self._wins += 1
+            self._winning_rewards += self.episode_reward
+            self.dataset.winners.append(seq)
+        else:
+            self._losses += 1
+            self.dataset.losers.append(seq)
+
+        self._total_rewards += self.episode_reward
+
+        self.done_episodes += 1
+        self.state = self.env.reset()
+        self.total_rewards.append(self.episode_reward)
+        self.avg_rewards = float(np.mean(self.total_rewards[-self.avg_reward_len:]))
+
     def training_step(self, batch: Tuple[Tensor, Tensor], batch_idx: int) -> OrderedDict:
         """Perform one actor-critic update using a batch of data.
         Args:
             batch: a batch of (states, actions, returns)
         """
         states, actions, returns = batch
+
+        # Play a few games here to generate fresh data
+        with torch.no_grad():
+            for _ in range(self.hparams.batch_size):
+                self.play_game()
+
+        # Compute loss to backprop
         loss = self.loss(states, actions, returns)
 
         if self.global_step % 10 == 0:
             self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
             self.writer.add_scalar("total_games_played", self.done_episodes, global_step=self.global_step)
-            #self.writer.add_scalar("winner_buffer", len(self.dataset.winners), global_step=self.global_step)
-            #self.writer.add_scalar("loser_buffer", len(self.dataset.losers), global_step=self.global_step)
+            self.writer.add_scalar("winner_buffer", len(self.dataset.winners), global_step=self.global_step)
+            self.writer.add_scalar("loser_buffer", len(self.dataset.losers), global_step=self.global_step)
 
             self.writer.add_scalar("lose_ratio", self._losses/(self._wins+self._losses), global_step=self.global_step)
             self.writer.add_scalar("wins", self._wins, global_step=self.global_step)
@@ -275,8 +336,8 @@ class AdvantageActorCritic(LightningModule):
 
     def _dataloader(self) -> DataLoader:
         """Initialize the Replay Buffer dataset used for retrieving experiences."""
-        dataset = ExperienceSourceDataset(self.train_batch)
-        dataloader = DataLoader(dataset=dataset, batch_size=self.hparams.batch_size)
+        #dataset = ExperienceSourceDataset(self.train_batch)
+        dataloader = DataLoader(dataset=self.dataset, batch_size=self.hparams.batch_size)
         return dataloader
 
     def train_dataloader(self) -> DataLoader:
@@ -298,14 +359,15 @@ class AdvantageActorCritic(LightningModule):
 
         arg_parser.add_argument("--entropy_beta", type=float, default=0.01, help="entropy coefficient")
         arg_parser.add_argument("--critic_beta", type=float, default=0.5, help="critic loss coefficient")
-        arg_parser.add_argument("--batch_size", type=int, default=32, help="size of the batches")
+        arg_parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
         arg_parser.add_argument("--epoch_len", type=int, default=10, help="Batches per epoch")
         arg_parser.add_argument("--lr", type=float, default=1e-3, help="learning rate")
         arg_parser.add_argument("--env", type=str, default="WordleEnv100-v0", help="gym environment tag")
         arg_parser.add_argument("--network_name", type=str, default="SumChars", help="Network to use")
         arg_parser.add_argument("--hidden_size", type=int, default="256", help="Width of hidden layers")
-        arg_parser.add_argument("--gamma", type=float, default=0.90, help="discount factor")
+        arg_parser.add_argument("--gamma", type=float, default=0.95, help="discount factor")
         arg_parser.add_argument("--seed", type=int, default=123, help="seed for training run")
+        arg_parser.add_argument("--replay_size", type=int, default=1000, help="Size of replay buffer(s)")
 
         arg_parser.add_argument(
             "--avg_reward_len",
@@ -330,7 +392,7 @@ def cli_main() -> None:
     model = AdvantageActorCritic(**args.__dict__)
 
     # save checkpoints based on avg_reward
-    checkpoint_callback = ModelCheckpoint(save_top_k=1, monitor="avg_reward", mode="max", verbose=True)
+    checkpoint_callback = ModelCheckpoint()
 
     seed_everything(123)
     trainer = Trainer.from_argparse_args(args, deterministic=True, callbacks=checkpoint_callback)

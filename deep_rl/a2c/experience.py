@@ -1,7 +1,6 @@
 import pickle
 from collections import deque, namedtuple
-from dataclasses import dataclass
-from typing import Tuple, Any, List
+from typing import Tuple, List, Iterator, Callable
 
 import numpy as np
 from torch.utils.data.dataset import IterableDataset
@@ -9,42 +8,22 @@ from torch.utils.data.dataset import IterableDataset
 
 Experience = namedtuple(
     "Experience",
-    field_names=["state", "action", "reward", "done", "new_state"],
+    field_names=["state", "action", "returns"],
 )
 
 
-class ReplayBuffer:
-    """Replay Buffer for storing past experiences allowing the agent to learn from them.
-
-    Args:
-        capacity: size of the buffer
+class ExperienceSourceDataset(IterableDataset):
+    """Basic experience source dataset.
+    Takes a generate_batch function that returns an iterator. The logic for the experience source and how the batch is
+    generated is defined the Lightning model itself
     """
 
-    def __init__(self, capacity: int) -> None:
-        self.buffer = deque(maxlen=capacity)
+    def __init__(self, generate_batch: Callable) -> None:
+        self.generate_batch = generate_batch
 
-    def __len__(self) -> int:
-        return len(self.buffer)
-
-    def append(self, experience: Experience) -> None:
-        """Add experience to the buffer.
-
-        Args:
-            experience: tuple (state, action, reward, done, new_state)
-        """
-        self.buffer.append(experience)
-
-    def sample(self, batch_size: int) -> Tuple:
-        indices = np.random.choice(len(self.buffer), batch_size, replace=False)
-        states, actions, rewards, dones, next_states = zip(*(self.buffer[idx] for idx in indices))
-
-        return (
-            np.array(states),
-            np.array(actions),
-            np.array(rewards, dtype=np.float32),
-            np.array(dones, dtype=np.bool),
-            np.array(next_states),
-        )
+    def __iter__(self) -> Iterator:
+        iterator = self.generate_batch()
+        return iterator
 
 
 class SequenceReplay:
@@ -110,10 +89,10 @@ class RLDataset(IterableDataset):
     def __iter__(self) -> Tuple:
         xps = self.winners.sample(self.sample_size//2) + self.losers.sample(self.sample_size//2)
 
-        states, actions, rewards, dones, new_states = zip(*xps)
-        rewards = np.array(rewards, dtype=np.float32)
+        states, actions, returns = zip(*xps)
+        returns = np.array(returns, dtype=np.float32)
 
-        for i in range(len(dones)):
-            yield states[i], actions[i], rewards[i], dones[i], new_states[i]
+        for i in range(len(actions)):
+            yield states[i], actions[i], returns[i]
 
 
