@@ -85,6 +85,8 @@ class AdvantageActorCritic(LightningModule):
         self.batch_masks: List = []
 
         self._winning_steps = 0
+        self._winning_rewards = 0
+        self._total_rewards = 0
         self._wins = 0
         self._losses = 0
 
@@ -123,6 +125,7 @@ class AdvantageActorCritic(LightningModule):
                 action = self.agent(self.state.vec, self.device)[0]
 
                 next_state, reward, done, _ = self.env.step(action)
+                #print(self.state.remaining_steps(), next_state.remaining_steps())
 
                 self.batch_rewards.append(reward)
                 self.batch_actions.append(action)
@@ -132,11 +135,14 @@ class AdvantageActorCritic(LightningModule):
                 self.episode_reward += reward
 
                 if done:
-                    if reward > 0:
+                    if action == self.env.goal_word:
                         self._winning_steps += self.env.max_turns - self.state.remaining_steps()
                         self._wins += 1
+                        self._winning_rewards += self.episode_reward
                     else:
                         self._losses += 1
+
+                    self._total_rewards += self.episode_reward
 
                     self.done_episodes += 1
                     self.state = self.env.reset()
@@ -232,15 +238,19 @@ class AdvantageActorCritic(LightningModule):
         if self.global_step % 10 == 0:
             self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
             self.writer.add_scalar("total_games_played", self.done_episodes, global_step=self.global_step)
-
             #self.writer.add_scalar("winner_buffer", len(self.dataset.winners), global_step=self.global_step)
             #self.writer.add_scalar("loser_buffer", len(self.dataset.losers), global_step=self.global_step)
 
             self.writer.add_scalar("lose_ratio", self._losses/(self._wins+self._losses), global_step=self.global_step)
             self.writer.add_scalar("wins", self._wins, global_step=self.global_step)
+            self.writer.add_scalar("reward_per_game", self._total_rewards / (self._wins+self._losses), global_step=self.global_step)
             if self._wins > 0:
+                self.writer.add_scalar("reward_per_win", self._winning_rewards / self._wins, global_step=self.global_step)
                 self.writer.add_scalar("avg_winning_turns", self._winning_steps/self._wins, global_step=self.global_step)
+
             self._winning_steps = 0
+            self._winning_rewards = 0
+            self._total_rewards = 0
             self._wins = 0
             self._losses = 0
 
@@ -288,8 +298,7 @@ class AdvantageActorCritic(LightningModule):
 
         arg_parser.add_argument("--entropy_beta", type=float, default=0.01, help="entropy coefficient")
         arg_parser.add_argument("--critic_beta", type=float, default=0.5, help="critic loss coefficient")
-        #arg_parser.add_argument("--batches_per_epoch", type=int, default=10000, help="number of batches in an epoch")
-        arg_parser.add_argument("--batch_size", type=int, default=512, help="size of the batches")
+        arg_parser.add_argument("--batch_size", type=int, default=32, help="size of the batches")
         arg_parser.add_argument("--epoch_len", type=int, default=10, help="Batches per epoch")
         arg_parser.add_argument("--lr", type=float, default=1e-3, help="learning rate")
         arg_parser.add_argument("--env", type=str, default="WordleEnv100-v0", help="gym environment tag")

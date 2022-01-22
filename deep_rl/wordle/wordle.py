@@ -9,7 +9,7 @@ import numpy as np
 VALID_WORDS_PATH = '../data/wordle_words.txt'
 WORDLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 WORDLE_N = 5
-REWARD = 10
+REWARD = 1
 
 
 def _load_words(limit: Optional[int]=None) -> List[str]:
@@ -156,7 +156,7 @@ class WordleEnvBase(gym.Env):
         self.done = False
         self.goal_word = np.random.choice(len(self.words), p=self.frequencies)
 
-        return self.state
+        return self.state.copy()
 
     # def render(self, mode="human"):
         # screen_width = 600
