@@ -9,7 +9,7 @@ import numpy as np
 VALID_WORDS_PATH = '../data/wordle_words.txt'
 WORDLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 WORDLE_N = 5
-REWARD = 1
+REWARD = 10
 
 
 def _load_words(limit: Optional[int]=None) -> List[str]:
