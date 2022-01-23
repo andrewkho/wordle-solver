@@ -106,10 +106,16 @@ class WordleEnvBase(gym.Env):
 
     #metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 50}
 
-    def __init__(self, words: List[str], max_turns: int, frequencies: Optional[List[float]]=None):
+    def __init__(self, words: List[str],
+                 max_turns: int,
+                 allowable_words: Optional[int] = None,
+                 frequencies: Optional[List[float]]=None):
         assert all(len(w) == WORDLE_N for w in words), f'Not all words of length {WORDLE_N}, {words}'
         self.words = words
         self.max_turns = max_turns
+        self.allowable_words = allowable_words
+        if not self.allowable_words:
+            self.allowable_words = self.max_turns
 
         self.frequencies = None
         if frequencies:
@@ -155,9 +161,7 @@ class WordleEnvBase(gym.Env):
     def reset(self, seed: Optional[int] = None):
         self.state = WordleState.new(self.max_turns)
         self.done = False
-        self.goal_word = int(np.random.random()*len(self.words))
-        #self.goal_word = np.random.choice(len(self.words), p=self.frequencies)
-        #self.goal_word = np.random.choice(10)
+        self.goal_word = int(np.random.random()*self.allowable_words)
 
         return self.state.copy()
 
@@ -171,10 +175,19 @@ class WordleEnv100(WordleEnvBase):
     def __init__(self):
         super().__init__(words=_load_words(100), max_turns=6)
 
+class WordleEnv100FullAction(WordleEnvBase):
+    def __init__(self):
+        super().__init__(words=_load_words(), allowable_words=100, max_turns=6)
+
 
 class WordleEnv1000(WordleEnvBase):
     def __init__(self):
         super().__init__(words=_load_words(1000), max_turns=6)
+
+
+class WordleEnv1000FullAction(WordleEnvBase):
+    def __init__(self):
+        super().__init__(words=_load_words(), allowable_words=1000, max_turns=6)
 
 
 class WordleEnv(WordleEnvBase):
