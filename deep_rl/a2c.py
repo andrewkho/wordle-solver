@@ -322,7 +322,7 @@ class AdvantageActorCritic(LightningModule):
         arg_parser.add_argument("--lr", type=float, default=1e-3, help="learning rate")
         arg_parser.add_argument("--env", type=str, default="WordleEnv100-v0", help="gym environment tag")
         arg_parser.add_argument("--network_name", type=str, default="SumChars", help="Network to use")
-        arg_parser.add_argument("--n_hidden", type=int, default="256", help="Number of hidden layers")
+        arg_parser.add_argument("--n_hidden", type=int, default="1", help="Number of hidden layers")
         arg_parser.add_argument("--hidden_size", type=int, default="256", help="Width of hidden layers")
         arg_parser.add_argument("--gamma", type=float, default=0.99, help="discount factor")
         arg_parser.add_argument("--seed", type=int, default=123, help="seed for training run")
