@@ -140,12 +140,11 @@ class WordleEnvBase(gym.Env):
         reward = 0
         if action == self.goal_word:
             self.done = True
-            reward = REWARD
-            # if self.state.remaining_steps() == self.max_turns-1:
-            #     reward = 0#-10*REWARD  # No reward for guessing off the bat
-            # else:
-            #     #reward = REWARD*(self.state.remaining_steps() + 1) / self.max_turns
-            #     reward = REWARD
+            if self.state.remaining_steps() == self.max_turns-1:
+                reward = 0#-10*REWARD  # No reward for guessing off the bat
+            else:
+                #reward = REWARD*(self.state.remaining_steps() + 1) / self.max_turns
+                reward = REWARD
         elif self.state.remaining_steps() == 0:
             self.done = True
             reward = -REWARD
