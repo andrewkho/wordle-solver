@@ -30,7 +30,6 @@ class SumChars(nn.Module):
         self.words = torch.Tensor(word_array)
 
         self.actor_head = nn.Linear(word_width, word_width)
-        #self.actor_head = nn.Linear(word_width, len(word_list))
         self.critic_head = nn.Linear(word_width, 1)
 
     def forward(self, x):

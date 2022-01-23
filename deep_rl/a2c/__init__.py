@@ -1,5 +1,4 @@
 from a2c.sumchars import SumChars
-from a2c.mlp import MLP
 
 _registry = {}
 
@@ -13,4 +12,3 @@ def construct(name, **kwargs):
 
 
 register(SumChars, "SumChars")
-register(MLP, "MLP")

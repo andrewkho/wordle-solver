@@ -72,11 +72,6 @@ class AdvantageActorCritic(LightningModule):
             word_list=self.env.words)
         self.agent = ActorCriticAgent(self.net)
 
-        self.dataset = RLDataset(
-            winners=SequenceReplay(self.hparams.replay_size//2),# self.hparams.initialize_winning_replays),
-            losers=SequenceReplay(self.hparams.replay_size//2),
-            sample_size=self.hparams.batch_size)
-
         # Tracking metrics
         self.total_rewards = [0]
         self.episode_reward = 0
@@ -97,10 +92,6 @@ class AdvantageActorCritic(LightningModule):
         self._losses = 0
 
         self.state = self.env.reset()
-
-        # Populate with some samples
-        # for _ in range(1000):
-        #     self.play_game()
 
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         """Passes in a state x through the network and gets the log prob of each action and the value for the state
@@ -217,14 +208,10 @@ class AdvantageActorCritic(LightningModule):
         # calculates (normalized) advantage
         with torch.no_grad():
             # critic is trained with normalized returns, so we need to scale the values here
-            advs = returns - values * returns.std() + returns.mean()
-            #advs = (returns - returns.mean()) / (returns.std() + self.eps) - values
+            advs = returns - values * returns.std() - returns.mean()
             # normalize advantages to train actor
             advs = (advs - advs.mean()) / (advs.std() + self.eps)
             # normalize returns to train critic
-            #advs = returns - values
-            #advs = returns
-            #targets = returns
             targets = (returns - returns.mean()) / (returns.std() + self.eps)
 
         # entropy loss
@@ -240,57 +227,7 @@ class AdvantageActorCritic(LightningModule):
 
         # total loss (weighted sum)
         total_loss = actor_loss + critic_loss - entropy
-        #total_loss = actor_loss + entropy
         return total_loss
-
-    # def play_game(self):
-    #     done = False
-    #     batch_states = []
-    #     batch_actions = []
-    #     batch_rewards = []
-    #     batch_masks = []
-    #     goal_ids = []
-    #     self.episode_reward = 0
-    #     with torch.no_grad():
-    #         while not done:
-    #             action = self.agent(self.state.vec, self.device)[0]
-    #             next_state, reward, done, aux = self.env.step(action)
-    #
-    #             batch_rewards.append(reward)
-    #             batch_actions.append(action)
-    #             batch_states.append(self.state.vec)
-    #             batch_masks.append(done)
-    #             goal_ids.append(aux["goal_id"])
-    #             self.state = next_state
-    #             self.episode_reward += reward
-    #
-    #         returns = []
-    #         g = 0
-    #         for r, d in zip(batch_rewards[::-1], batch_masks[::-1]):
-    #             g = r + self.hparams.gamma * g * (1 - d)
-    #             returns.append(g)
-    #
-    #         # reverse list and stop the gradients
-    #         returns = torch.tensor(returns[::-1])
-    #
-    #         seq = [
-    #             Experience(*x) for x in zip(batch_states, batch_actions, returns, goal_ids)
-    #         ]
-    #         if batch_rewards[-1] > 0:
-    #             self._winning_steps += self.env.max_turns - self.state.remaining_steps()
-    #             self._wins += 1
-    #             self._winning_rewards += self.episode_reward
-    #             self.dataset.winners.append(seq)
-    #         else:
-    #             self._losses += 1
-    #             self.dataset.losers.append(seq)
-    #
-    #         self._total_rewards += self.episode_reward
-    #
-    #         self.done_episodes += 1
-    #         self.state = self.env.reset()
-    #         self.total_rewards.append(self.episode_reward)
-    #         self.avg_rewards = float(np.mean(self.total_rewards[-self.avg_reward_len:]))
 
     def training_step(self, batch: Tuple[Tensor, Tensor], batch_idx: int) -> OrderedDict:
         """Perform one actor-critic update using a batch of data.
@@ -299,18 +236,13 @@ class AdvantageActorCritic(LightningModule):
         """
         states, actions, returns, goal_ids = batch
 
-        # Play a few games here to generate fresh data
-        # with torch.no_grad():
-            # for _ in range(self.hparams.batch_size):
-            #     self.play_game()
-
         # Compute loss to backprop
         loss = self.loss(states, actions, returns)
 
         if self.global_step % 10 == 0:
             # Find a sequence
             i = 0
-            while True:
+            while i < len(states):
                 if states[i][0] == self.env.max_turns:
                     break
                 i += 1
@@ -319,48 +251,13 @@ class AdvantageActorCritic(LightningModule):
             strt = i
             game += f'{0}: {self.env.words[actions[i]]}\n'
             i += 1
-            while states[i][0] != self.env.max_turns:
+            while i < len(states) and states[i][0] != self.env.max_turns:
                 game += f'{i-strt}: {self.env.words[actions[i]]}\n'
                 i += 1
 
             self.writer.add_text("game sample", game, global_step=self.global_step)
-
-            # if len(self.dataset.winners) > 0:
-                # winner = self.dataset.winners.buffer[-1]
-                # game = f"goal: {self.env.words[winner[0].goal_id]}\n"
-                # for i, xp in enumerate(winner):
-                    # tried = ''.join(
-                    #     chr(ord('A') + i)
-                    #     for i, seen in enumerate(xp.state[1:27])
-                    #     if seen
-                    # )
-                    # offset = 1+26 + 0
-                    # tried = ''.join(
-                    #     str(x)
-                    #     for x in xp.state[offset:offset+15]
-                    # )
-                    # game += f"{i}: {self.env.words[xp.action]}\n"
-                # self.writer.add_text("game sample/winner", game, global_step=self.global_step)
-            # if len(self.dataset.losers) > 0:
-            #     loser = self.dataset.losers.buffer[-1]
-            #     game = f"goal: {self.env.words[loser[0].goal_id]}\n"
-            #     for i, xp in enumerate(loser):
-            #         # tried = ''.join(
-            #         #     chr(ord('A') + i)
-            #         #     for i, seen in enumerate(xp.state[1:27])
-            #         #     if seen
-            #         # )
-            #         # offset = 1+26 + 0
-            #         # tried = ''.join(
-            #         #     str(x)
-            #         #     for x in xp.state[offset:offset+15]
-            #         # )
-            #         game += f"{i}: {self.env.words[xp.action]}\n"
-            #     self.writer.add_text("game sample/loser", game, global_step=self.global_step)
             self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
             self.writer.add_scalar("total_games_played", self.done_episodes, global_step=self.global_step)
-            self.writer.add_scalar("winner_buffer", len(self.dataset.winners), global_step=self.global_step)
-            self.writer.add_scalar("loser_buffer", len(self.dataset.losers), global_step=self.global_step)
 
             self.writer.add_scalar("lose_ratio", self._losses/(self._wins+self._losses), global_step=self.global_step)
             self.writer.add_scalar("wins", self._wins, global_step=self.global_step)
@@ -396,9 +293,6 @@ class AdvantageActorCritic(LightningModule):
 
     def _dataloader(self) -> DataLoader:
         """Initialize the Replay Buffer dataset used for retrieving experiences."""
-        #dataset = ExperienceSourceDataset(self.train_batch)
-        # dataloader = DataLoader(dataset=self.dataset, batch_size=self.hparams.batch_size)
-        # return dataloader
         dataset = ExperienceSourceDataset(self.train_batch)
         dataloader = DataLoader(dataset=dataset, batch_size=self.hparams.batch_size)
         return dataloader
@@ -428,7 +322,7 @@ class AdvantageActorCritic(LightningModule):
         arg_parser.add_argument("--env", type=str, default="WordleEnv100-v0", help="gym environment tag")
         arg_parser.add_argument("--network_name", type=str, default="SumChars", help="Network to use")
         arg_parser.add_argument("--hidden_size", type=int, default="256", help="Width of hidden layers")
-        arg_parser.add_argument("--gamma", type=float, default=0.95, help="discount factor")
+        arg_parser.add_argument("--gamma", type=float, default=0.99, help="discount factor")
         arg_parser.add_argument("--seed", type=int, default=123, help="seed for training run")
         arg_parser.add_argument("--replay_size", type=int, default=1000, help="Size of replay buffer(s)")
 
