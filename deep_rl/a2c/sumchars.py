@@ -6,7 +6,7 @@ from torch import nn
 
 
 class SumChars(nn.Module):
-    def __init__(self, obs_size: int, n_actions: int, word_list: List[str], hidden_size: int = 256):
+    def __init__(self, obs_size: int, word_list: List[str], n_hidden: int = 1, hidden_size: int = 256):
         """
         Args:
             obs_size: observation/state size of the environment
@@ -15,14 +15,17 @@ class SumChars(nn.Module):
         """
         super().__init__()
         word_width = 26*5
-        self.f0 = nn.Sequential(
+        layers = [
             nn.Linear(obs_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, word_width),
-            nn.ReLU()
-        )
+        ]
+        for _ in range(n_hidden):
+            layers.append(nn.Linear(hidden_size, hidden_size))
+            layers.append(nn.ReLU())
+        layers.append(nn.Linear(hidden_size, word_width))
+        layers.append(nn.ReLU())
+
+        self.f0 = nn.Sequential(*layers)
         word_array = np.zeros((word_width, len(word_list)))
         for i, word in enumerate(word_list):
             for j, c in enumerate(word):

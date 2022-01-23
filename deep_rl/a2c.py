@@ -37,6 +37,7 @@ class AdvantageActorCritic(LightningModule):
             lr: float,
             batch_size: int,
             avg_reward_len: int,
+            n_hidden: int,
             hidden_size: int,
             entropy_beta: float,
             critic_beta: float,
@@ -67,7 +68,7 @@ class AdvantageActorCritic(LightningModule):
         self.net = a2c.construct(
             self.hparams.network_name,
             obs_size=self.env.observation_space.shape[0],
-            n_actions=self.env.action_space.n,
+            n_hidden=self.hparams.n_hidden,
             hidden_size=self.hparams.hidden_size,
             word_list=self.env.words)
         self.agent = ActorCriticAgent(self.net)
@@ -321,6 +322,7 @@ class AdvantageActorCritic(LightningModule):
         arg_parser.add_argument("--lr", type=float, default=1e-3, help="learning rate")
         arg_parser.add_argument("--env", type=str, default="WordleEnv100-v0", help="gym environment tag")
         arg_parser.add_argument("--network_name", type=str, default="SumChars", help="Network to use")
+        arg_parser.add_argument("--n_hidden", type=int, default="256", help="Number of hidden layers")
         arg_parser.add_argument("--hidden_size", type=int, default="256", help="Width of hidden layers")
         arg_parser.add_argument("--gamma", type=float, default=0.99, help="discount factor")
         arg_parser.add_argument("--seed", type=int, default=123, help="seed for training run")
