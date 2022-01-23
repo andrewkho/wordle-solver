@@ -29,7 +29,7 @@ class ActorCriticAgent:
         # if not isinstance(states, torch.Tensor):
         #     states = torch.tensor(states, device=device)
         #
-        logprobs, _ = self.net(torch.tensor([states]).to(device))
+        logprobs, _ = self.net(torch.tensor([states], device=device))
         probabilities = logprobs.exp().squeeze(dim=-1)
         prob_np = probabilities.data.cpu().numpy()
 

@@ -107,7 +107,7 @@ class AdvantageActorCritic(LightningModule):
         # if not isinstance(x, Tensor):
         #     x = torch.tensor(x, device=self.device)
         #
-        logprobs, values = self.net(torch.tensor([x]))
+        logprobs, values = self.net(torch.tensor([x], device=self.device))
         return logprobs, values
 
     def train_batch(self) -> Iterator[Tuple[np.ndarray, int, Tensor]]:
