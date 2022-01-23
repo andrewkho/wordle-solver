@@ -101,13 +101,13 @@ class AdvantageActorCritic(LightningModule):
         Returns:
             action log probabilities, values
         """
-        if not isinstance(x, list):
-            x = [x]
-
-        if not isinstance(x, Tensor):
-            x = torch.tensor(x, device=self.device)
-
-        logprobs, values = self.net(x)
+        # if not isinstance(x, list):
+        #     x = [x]
+        #
+        # if not isinstance(x, Tensor):
+        #     x = torch.tensor(x, device=self.device)
+        #
+        logprobs, values = self.net(torch.tensor([x]))
         return logprobs, values
 
     def train_batch(self) -> Iterator[Tuple[np.ndarray, int, Tensor]]:

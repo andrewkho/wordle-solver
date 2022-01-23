@@ -3,3 +3,4 @@ env
 .idea
 lightning_logs
 runs
+*.profile

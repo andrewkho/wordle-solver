@@ -23,13 +23,13 @@ class ActorCriticAgent:
         Returns:
             action defined by policy
         """
-        if not isinstance(states, list):
-            states = [states]
-
-        if not isinstance(states, torch.Tensor):
-            states = torch.tensor(states, device=device)
-
-        logprobs, _ = self.net(states)
+        # if not isinstance(states, list):
+        #     states = [states]
+        #
+        # if not isinstance(states, torch.Tensor):
+        #     states = torch.tensor(states, device=device)
+        #
+        logprobs, _ = self.net(torch.tensor([states]).to(device))
         probabilities = logprobs.exp().squeeze(dim=-1)
         prob_np = probabilities.data.cpu().numpy()
 
