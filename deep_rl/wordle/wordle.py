@@ -115,7 +115,7 @@ class WordleEnvBase(gym.Env):
         self.max_turns = max_turns
         self.allowable_words = allowable_words
         if not self.allowable_words:
-            self.allowable_words = self.max_turns
+            self.allowable_words = len(self.words)
 
         self.frequencies = None
         if frequencies:

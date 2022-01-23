@@ -23,31 +23,25 @@ register(
 )
 
 register(
-    id="WordleEnv100Training-v0",
-    entry_point="wordle.wordle:WordleEnv100Training",
+    id="WordleEnv100FullAction-v0",
+    entry_point="wordle.wordle:WordleEnv100FullAction",
     max_episode_steps=500,
 )
 
 register(
     id="WordleEnv1000-v0",
     entry_point="wordle.wordle:WordleEnv1000",
-    max_episode_steps=1000,
+    max_episode_steps=500,
 )
 
 register(
-    id="WordleEnv1000Training-v0",
-    entry_point="wordle.wordle:WordleEnv1000Training",
-    max_episode_steps=1000,
-)
-
-register(
-    id="WordleEnv1000Training1000-v0",
-    entry_point="wordle.wordle:WordleEnv1000Training1000",
-    max_episode_steps=1000,
+    id="WordleEnv1000FullAction-v0",
+    entry_point="wordle.wordle:WordleEnv1000FullAction",
+    max_episode_steps=500,
 )
 
 register(
     id="WordleEnv-v0",
     entry_point="wordle.wordle:WordleEnv",
-    max_episode_steps=1000,
+    max_episode_steps=500,
 )
