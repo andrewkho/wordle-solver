@@ -134,7 +134,6 @@ class WordleEnvBase(gym.Env):
                 "should always call 'reset()' once you receive 'done = "
                 "True' -- any further steps are undefined behavior."
             )
-
         self.state.update(self.words[action],
                           self.words[self.goal_word])
 
@@ -142,14 +141,15 @@ class WordleEnvBase(gym.Env):
         if action == self.goal_word:
             self.done = True
             if self.state.remaining_steps() == self.max_turns-1:
-                reward = 0  # No reward for guessing off the bat
+                reward = 0#-10*REWARD  # No reward for guessing off the bat
             else:
-                reward = REWARD*(self.state.remaining_steps() + 1) / self.max_turns
+                #reward = REWARD*(self.state.remaining_steps() + 1) / self.max_turns
+                reward = REWARD
         elif self.state.remaining_steps() == 0:
             self.done = True
             reward = -REWARD
 
-        return self.state.copy(), reward, self.done, {}
+        return self.state.copy(), reward, self.done, {"goal_id": self.goal_word}
 
     def reset(self, seed: Optional[int] = None):
         self.state = WordleState.new(self.max_turns)

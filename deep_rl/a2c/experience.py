@@ -8,7 +8,7 @@ from torch.utils.data.dataset import IterableDataset
 
 Experience = namedtuple(
     "Experience",
-    field_names=["state", "action", "returns"],
+    field_names=["state", "action", "returns", "goal_id"],
 )
 
 
@@ -36,6 +36,7 @@ class SequenceReplay:
     def __init__(self, capacity: int, initialize_winning_replays: str=None) -> None:
         self.capacity = capacity
         self.buffer = deque(maxlen=capacity)
+        self.included = set()
 
         if initialize_winning_replays:
             with open(initialize_winning_replays, 'rb') as f:
@@ -49,13 +50,24 @@ class SequenceReplay:
         with open(filename, 'wb') as f:
             pickle.dump(self.buffer, f)
 
+    def _key(self, xp_seq: List[Experience]):
+        return tuple([xp_seq[0].goal_id] + [xp.action for xp in xp_seq])
+
     def append(self, xp_seq: List[Experience]) -> None:
         """Add experience to the buffer.
 
         Args:
             experience: tuple (state, action, reward, done, new_state)
         """
-        self.buffer.append(xp_seq)
+        # Only add to set if it doesn't already exist
+        key = self._key(xp_seq)
+        if key in self.included:
+            return
+        else:
+            self.included.add(key)
+            if len(self.buffer) >= self.capacity:
+                self.included.remove(self._key(self.buffer[0]))
+            self.buffer.append(xp_seq)
 
     def sample(self, batch_size: int) -> List[Experience]:
         xps = []
@@ -89,7 +101,7 @@ class RLDataset(IterableDataset):
     def __iter__(self) -> Tuple:
         xps = self.winners.sample(self.sample_size//2) + self.losers.sample(self.sample_size//2)
 
-        states, actions, returns = zip(*xps)
+        states, actions, returns, _ = zip(*xps)
         returns = np.array(returns, dtype=np.float32)
 
         for i in range(len(actions)):

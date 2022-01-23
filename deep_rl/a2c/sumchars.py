@@ -30,16 +30,17 @@ class SumChars(nn.Module):
         self.words = torch.Tensor(word_array)
 
         self.actor_head = nn.Linear(word_width, word_width)
+        #self.actor_head = nn.Linear(word_width, len(word_list))
         self.critic_head = nn.Linear(word_width, 1)
 
     def forward(self, x):
-        x = self.f0(x.float())
+        y = self.f0(x.float())
         a = torch.log_softmax(
-            torch.tensordot(self.actor_head(x),
-                            self.words.to(self.get_device(x)),
+            torch.tensordot(self.actor_head(y),
+                            self.words.to(self.get_device(y)),
                             dims=((1,), (0,))),
-            dim=1)
-        c = self.critic_head(x)
+            dim=-1)
+        c = self.critic_head(y)
         return a, c
 
     def get_device(self, batch) -> str:

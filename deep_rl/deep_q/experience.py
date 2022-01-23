@@ -8,7 +8,7 @@ from torch.utils.data.dataset import IterableDataset
 
 Experience = namedtuple(
     "Experience",
-    field_names=["state", "action", "reward", "done", "new_state"],
+    field_names=["state", "action", "reward", "done", "new_state", "goal_id"],
 )
 
 
@@ -35,7 +35,7 @@ class ReplayBuffer:
 
     def sample(self, batch_size: int) -> Tuple:
         indices = np.random.choice(len(self.buffer), batch_size, replace=False)
-        states, actions, rewards, dones, next_states = zip(*(self.buffer[idx] for idx in indices))
+        states, actions, rewards, dones, next_states, _ = zip(*(self.buffer[idx] for idx in indices))
 
         return (
             np.array(states),
@@ -109,7 +109,7 @@ class RLDataset(IterableDataset):
     def __iter__(self) -> Tuple:
         xps = self.winners.sample(self.sample_size//2) + self.losers.sample(self.sample_size//2)
 
-        states, actions, rewards, dones, new_states = zip(*xps)
+        states, actions, rewards, dones, new_states, _ = zip(*xps)
         rewards = np.array(rewards, dtype=np.float32)
 
         for i in range(len(dones)):

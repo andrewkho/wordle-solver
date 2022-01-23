@@ -180,6 +180,38 @@ class DQNLightning(LightningModule):
         }
 
         if self.global_step % 100 == 0:
+            if len(self.dataset.winners) > 0:
+                winner = self.dataset.winners.buffer[-1]
+                game = f"goal: {self.env.words[winner[0].goal_id]}\n"
+                for i, xp in enumerate(winner):
+                    # tried = ''.join(
+                    #     chr(ord('A') + i)
+                    #     for i, seen in enumerate(xp.state[1:27])
+                    #     if seen
+                    # )
+                    offset = 1+26 + 0
+                    tried = ''.join(
+                        str(x)
+                        for x in xp.state[offset:offset+15]
+                    )
+                    game += f"{i}, {tried}: {self.env.words[xp.action]}\n"
+                self.writer.add_text("game sample/winner", game, global_step=self.global_step)
+            if len(self.dataset.losers) > 0:
+                loser = self.dataset.losers.buffer[-1]
+                game = f"goal: {self.env.words[loser[0].goal_id]}\n"
+                for i, xp in enumerate(loser):
+                    # tried = ''.join(
+                    #     chr(ord('A') + i)
+                    #     for i, seen in enumerate(xp.state[1:27])
+                    #     if seen
+                    # )
+                    offset = 1+26 + 0
+                    tried = ''.join(
+                        str(x)
+                        for x in xp.state[offset:offset+15]
+                    )
+                    game += f"{i}, {tried}: {self.env.words[xp.action]}\n"
+                self.writer.add_text("game sample/loser", game, global_step=self.global_step)
             self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
             self.writer.add_scalar("total_games_played", self.total_games_played, global_step=self.global_step)
 

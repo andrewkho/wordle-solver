@@ -98,7 +98,7 @@ class Agent:
         # do step in the environment
         new_state, reward, done, _ = self.env.step(action)
 
-        exp = Experience(self.state.vec, action, reward, done, new_state.vec)
+        exp = Experience(self.state.vec, action, reward, done, new_state.vec, self.env.goal_word)
 
         self.state = new_state
         return reward, done, exp
