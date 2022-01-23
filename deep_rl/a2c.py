@@ -239,7 +239,7 @@ class AdvantageActorCritic(LightningModule):
         # Compute loss to backprop
         loss = self.loss(states, actions, returns)
 
-        if self.global_step % 10 == 0:
+        if self.global_step % 50 == 0:
             # Find a sequence
             i = 0
             while i < len(states):
