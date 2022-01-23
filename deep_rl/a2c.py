@@ -137,7 +137,7 @@ class AdvantageActorCritic(LightningModule):
                 self.episode_reward += reward
 
                 if done:
-                    if reward > 0: #action == self.env.goal_word:
+                    if action == self.env.goal_word:
                         self._winning_steps += self.env.max_turns - self.state.remaining_steps()
                         self._wins += 1
                         self._winning_rewards += self.episode_reward
