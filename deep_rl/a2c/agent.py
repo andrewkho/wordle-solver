@@ -34,6 +34,12 @@ class ActorCriticAgent:
         prob_np = probabilities.data.cpu().numpy()
 
         # take the numpy values and randomly select action based on prob distribution
-        actions = [np.random.choice(len(prob), p=prob) for prob in prob_np]
+        #actions = [np.random.choice(len(prob), p=prob) for prob in prob_np]
+        cdf = np.cumsum(prob_np, axis=1)
+        select = np.random.random(cdf.shape[0])
+        actions = [
+            np.searchsorted(cdf[row, :], select[row])
+            for row in range(cdf.shape[0])
+        ]
 
         return actions

@@ -155,7 +155,8 @@ class WordleEnvBase(gym.Env):
     def reset(self, seed: Optional[int] = None):
         self.state = WordleState.new(self.max_turns)
         self.done = False
-        self.goal_word = np.random.choice(len(self.words), p=self.frequencies)
+        self.goal_word = int(np.random.random()*len(self.words))
+        #self.goal_word = np.random.choice(len(self.words), p=self.frequencies)
         #self.goal_word = np.random.choice(10)
 
         return self.state.copy()
