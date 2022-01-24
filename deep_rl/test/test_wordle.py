@@ -58,7 +58,7 @@ def test_win_reward(wordleEnv):
     assert new_state.remaining_steps() == wordleEnv.max_turns-2
     assert done
     assert wordleEnv.done
-    assert reward == wordle.wordle.REWARD * (wordleEnv.max_turns - 2 + 1) / wordleEnv.max_turns
+    assert reward == wordle.wordle.REWARD
 
     try:
         wordleEnv.step(goal)
@@ -79,7 +79,7 @@ def test_win_reward_6(wordleEnv):
     assert wordleEnv.max_turns - new_state.remaining_steps() == 6
     assert done
     assert wordleEnv.done
-    assert reward == wordle.wordle.REWARD / 6
+    assert reward == wordle.wordle.REWARD
 
 
 def test_lose_reward(wordleEnv):
@@ -109,8 +109,9 @@ def test_step(wordleEnv):
     wordleEnv.reset(seed=13)
     wordleEnv.goal_word = 0
 
-
+    cur_state = wordleEnv.state
     new_state, reward, done, _ = wordleEnv.step(1)
+    assert cur_state.remaining_steps() == wordleEnv.max_turns
     assert new_state.remaining_steps() == wordleEnv.max_turns-1
     # Expect B to be all 1,0,0
     offset = 1+26+3*5*(ord('B')-ord('A'))
@@ -139,7 +140,9 @@ def test_step(wordleEnv):
                                                   1,0,0,
                                                   1,0,0,
                                                   0,1,0)
+    cur_state = wordleEnv.state
     new_state, reward, done, _ = wordleEnv.step(1)
+    assert cur_state.remaining_steps() == wordleEnv.max_turns-1
     assert new_state.remaining_steps() == wordleEnv.max_turns-2
     # Expect B to be all 1,0,0
     offset = 1+26+3*5*(ord('B')-ord('A'))
@@ -191,4 +194,4 @@ def test_step(wordleEnv):
     assert new_state.remaining_steps() == wordleEnv.max_turns-4
     assert done
     assert wordleEnv.done
-    assert reward == wordle.wordle.REWARD * (wordleEnv.max_turns - 4 + 1) / wordleEnv.max_turns
+    assert reward == wordle.wordle.REWARD
