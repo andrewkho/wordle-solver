@@ -140,6 +140,7 @@ class WordleEnvBase(gym.Env):
                 "should always call 'reset()' once you receive 'done = "
                 "True' -- any further steps are undefined behavior."
             )
+        self.state = self.state.copy()
         self.state.update(self.words[action],
                           self.words[self.goal_word])
 
