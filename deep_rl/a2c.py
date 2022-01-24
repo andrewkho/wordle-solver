@@ -209,7 +209,7 @@ class AdvantageActorCritic(LightningModule):
         # calculates (normalized) advantage
         with torch.no_grad():
             # critic is trained with normalized returns, so we need to scale the values here
-            advs = returns - values * returns.std() - returns.mean()
+            advs = returns - values * returns.std() + returns.mean()
             # normalize advantages to train actor
             advs = (advs - advs.mean()) / (advs.std() + self.eps)
             # normalize returns to train critic
