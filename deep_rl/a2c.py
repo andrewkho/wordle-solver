@@ -15,7 +15,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 import a2c
 from a2c.agent import ActorCriticAgent
-from a2c.experience import ExperienceSourceDataset, RLDataset, SequenceReplay, Experience
+import wordle.state
+from sac.experience import ExperienceSourceDataset
 
 
 class AdvantageActorCritic(LightningModule):
@@ -124,13 +125,13 @@ class AdvantageActorCritic(LightningModule):
         """
         while True:
             for _ in range(self.hparams.batch_size):
-                action = self.agent(self.state.vec, self.device)[0]
+                action = self.agent(self.state, self.device)[0]
 
                 next_state, reward, done, aux = self.env.step(action)
 
                 self.batch_rewards.append(reward)
                 self.batch_actions.append(action)
-                self.batch_states.append(self.state.vec)
+                self.batch_states.append(self.state)
                 self.batch_masks.append(done)
                 self.batch_targets.append(aux['goal_id'])
                 self.state = next_state
@@ -138,7 +139,7 @@ class AdvantageActorCritic(LightningModule):
 
                 if done:
                     if action == self.env.goal_word:
-                        self._winning_steps += self.env.max_turns - self.state.remaining_steps()
+                        self._winning_steps += self.env.max_turns - wordle.state.remaining_steps(self.state)
                         self._wins += 1
                         self._winning_rewards += self.episode_reward
                     else:
@@ -152,7 +153,7 @@ class AdvantageActorCritic(LightningModule):
                     self.episode_reward = 0
                     self.avg_rewards = float(np.mean(self.total_rewards[-self.avg_reward_len :]))
 
-            _, last_value = self.forward(self.state.vec)
+            _, last_value = self.forward(self.state)
 
             returns = self.compute_returns(self.batch_rewards, self.batch_masks, last_value)
             for idx in range(self.hparams.batch_size):
