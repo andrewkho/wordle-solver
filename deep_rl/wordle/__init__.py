@@ -45,3 +45,9 @@ register(
     entry_point="wordle.wordle:WordleEnv",
     max_episode_steps=500,
 )
+
+register(
+    id="WordleEnvReal-v0",
+    entry_point="wordle.wordle:WordleEnv",
+    max_episode_steps=500,
+)

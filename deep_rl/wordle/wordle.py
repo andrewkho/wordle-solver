@@ -194,3 +194,8 @@ class WordleEnv1000FullAction(WordleEnvBase):
 class WordleEnv(WordleEnvBase):
     def __init__(self):
         super().__init__(words=_load_words(), max_turns=6)
+
+
+class WordleEnvReal(WordleEnvBase):
+    def __init__(self):
+        super().__init__(words=_load_words(), allowable_words=2315, max_turns=6)
