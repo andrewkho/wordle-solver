@@ -1,6 +1,6 @@
 import pickle
 from collections import deque, namedtuple
-from typing import Tuple, List, Callable, Iterator
+from typing import Tuple, List
 
 import numpy as np
 from torch.utils.data.dataset import IterableDataset

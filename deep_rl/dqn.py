@@ -75,6 +75,7 @@ class DQNLightning(LightningModule):
         self._winning_steps = 0
         self._wins = 0
         self._losses = 0
+        self._rewards = 0
 
         print("dqn:", self.env.spec.id, self.env.spec.max_episode_steps, n_actions, obs_size)
 
@@ -139,6 +140,7 @@ class DQNLightning(LightningModule):
 
         return nn.MSELoss()(state_action_values, expected_state_action_values)
 
+    @torch.no_grad()
     def play_game(
             self,
             epsilon: float = 0.0,
@@ -148,7 +150,9 @@ class DQNLightning(LightningModule):
         cur_seq = list()
         reward = 0
         while not done:
-            reward, done, exp = self.play_step(epsilon, device)
+            exp = self.play_step(epsilon, device)
+            done = exp.done
+            reward = exp.reward
             cur_seq.append(exp)
 
         winning_steps = self.env.max_turns - wordle.state.remaining_steps(self.state)
@@ -164,15 +168,15 @@ class DQNLightning(LightningModule):
             self,
             epsilon: float = 0.0,
             device: str = "cpu",
-    ) -> Tuple[float, bool, Experience]:
+    ) -> Experience:
         action = self.agent.get_action(self.state, epsilon, device)
 
         # do step in the environment
         new_state, reward, done, _ = self.env.step(action)
-        exp = Experience(self.state, action, reward, done, new_state, self.env.goal_word)
+        exp = Experience(self.state.copy(), action, reward, done, new_state.copy(), self.env.goal_word)
 
         self.state = new_state
-        return reward, done, exp
+        return exp
 
     def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], nb_batch) -> OrderedDict:
         """Carries out a single step through the environment to update the replay buffer. Then calculates loss
@@ -192,7 +196,8 @@ class DQNLightning(LightningModule):
             )
 
         # step through environment with agent
-        reward, winning_steps = self.play_game(epsilon, device)
+        with torch.no_grad():
+            reward, winning_steps = self.play_game(epsilon, device)
         self.total_games_played += 1
         if reward > 0:
             self._wins += 1
@@ -200,13 +205,10 @@ class DQNLightning(LightningModule):
         else:
             self._losses += 1
 
-        self.episode_reward += reward
+        self._rewards += reward
 
         # calculates training loss
         loss = self.dqn_mse_loss(batch)
-
-        self.total_reward = self.episode_reward
-        self.episode_reward = 0
 
         # Soft update of target network
         if self.global_step % self.hparams.sync_rate == 0:
@@ -243,11 +245,13 @@ class DQNLightning(LightningModule):
 
             self.writer.add_scalar("lose_ratio", self._losses/(self._wins+self._losses), global_step=self.global_step)
             self.writer.add_scalar("wins", self._wins, global_step=self.global_step)
+            self.writer.add_scalar("reward_per_game", self._rewards / (self._wins+self._losses), global_step=self.global_step)
             if self._wins > 0:
                 self.writer.add_scalar("avg_winning_turns", self._winning_steps/self._wins, global_step=self.global_step)
             self._winning_steps = 0
             self._wins = 0
             self._losses = 0
+            self._rewards = 0
 
         return OrderedDict({"loss": loss, "log": log, "progress_bar": status})
 

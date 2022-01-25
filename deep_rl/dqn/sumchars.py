@@ -30,8 +30,7 @@ class SumChars(nn.Module):
 
     def forward(self, x):
         y = self.f0(x.float())
-        z = torch.tensordot(y, self.words.to(self.get_device(x)), dims=((1,), (0,)))
-        return nn.Softmax(dim=1)(z)
+        return torch.tensordot(y, self.words.to(self.get_device(x)), dims=((1,), (0,)))
 
     def get_device(self, batch) -> str:
         """Retrieve device currently being used by minibatch."""

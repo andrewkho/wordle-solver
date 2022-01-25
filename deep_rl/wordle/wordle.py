@@ -60,7 +60,7 @@ class WordleEnvBase(gym.Env):
 
         self.state: wordle.state.WordleState = None
 
-    def step(self, action):
+    def step(self, action: int):
         if self.done:
             raise ValueError(
                 "You are calling 'step()' even though this "
@@ -92,7 +92,7 @@ class WordleEnvBase(gym.Env):
         self.done = False
         self.goal_word = int(np.random.random()*self.allowable_words)
 
-        return self.state
+        return self.state.copy()
 
 
 class WordleEnv10(WordleEnvBase):
@@ -107,7 +107,7 @@ class WordleEnv100(WordleEnvBase):
 
 class WordleEnv100OneAction(WordleEnvBase):
     def __init__(self):
-        super().__init__(words=_load_words(100), allowable_words=1, max_turns=6)
+        super().__init__(words=_load_words(100), allowable_words=2, max_turns=6)
 
 
 class WordleEnv100FullAction(WordleEnvBase):
