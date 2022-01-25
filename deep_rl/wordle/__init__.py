@@ -23,6 +23,12 @@ register(
 )
 
 register(
+    id="WordleEnv100OneAction-v0",
+    entry_point="wordle.wordle:WordleEnv100OneAction",
+    max_episode_steps=500,
+)
+
+register(
     id="WordleEnv100FullAction-v0",
     entry_point="wordle.wordle:WordleEnv100FullAction",
     max_episode_steps=500,
@@ -41,8 +47,8 @@ register(
 )
 
 register(
-    id="WordleEnv-v0",
-    entry_point="wordle.wordle:WordleEnv",
+    id="WordleEnvFull-v0",
+    entry_point="wordle.wordle:WordleEnvFull",
     max_episode_steps=500,
 )
 

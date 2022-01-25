@@ -1,15 +1,13 @@
-import math
-from dataclasses import dataclass
 from typing import Optional, List
 
 import gym
 from gym import spaces
 import numpy as np
 
+import wordle.state
+from wordle.const import WORDLE_N, REWARD
+
 VALID_WORDS_PATH = '../data/wordle_words.txt'
-WORDLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-WORDLE_N = 5
-REWARD = 10
 
 
 def _load_words(limit: Optional[int]=None) -> List[str]:
@@ -21,63 +19,6 @@ def _load_words(limit: Optional[int]=None) -> List[str]:
             return lines[:limit]
 
 
-@dataclass
-class WordleState:
-    """
-    Keep the state in a 1D vec to keep it performant.
-    
-    index[0] = remaining steps
-    Rest of data is laid out as binary array
-    
-    [1..27] = whether char has been guessed or not
-
-    [[status, status, status, status, status]
-     for _ in "ABCD..."]
-    where status has codes
-     [1, 0, 0] - char is definitely not in this spot
-     [0, 1, 0] - char is maybe in this spot
-     [0, 0, 1] - char is definitely in this spot
-    """
-    vec: np.ndarray
-
-    @classmethod
-    def get_nvec(cls, max_turns: int):
-        return [max_turns] + [2] * len(WORDLE_CHARS) + [2] * 3 * WORDLE_N * len(WORDLE_CHARS)
-
-    @classmethod
-    def new(cls, max_turns: int):
-        return WordleState(
-            np.array([max_turns] + [0] * len(WORDLE_CHARS) + [0, 1, 0] * WORDLE_N * len(WORDLE_CHARS),
-                     dtype=np.int32)
-        )
-
-    def copy(self):
-        return WordleState(self.vec.copy())
-
-    def remaining_steps(self) -> int:
-        return self.vec[0]
-
-    def update(self, word: str, goal_word: str):
-        self.vec[0] -= 1
-        for i, c in enumerate(word):
-            cint = ord(c) - ord(WORDLE_CHARS[0])
-            offset = 1 + len(WORDLE_CHARS) + cint*WORDLE_N*3
-            self.vec[1+cint] = 1
-            if goal_word[i] == c:
-                # char at position i = yes, all other chars at position i == no
-                self.vec[offset+3*i:offset+3*i+3] = [0, 0, 1]
-                for ocint in range(len(WORDLE_CHARS)):
-                    if ocint != cint:
-                        oc_offset = 1 + len(WORDLE_CHARS) + ocint*WORDLE_N*3
-                        self.vec[oc_offset+3*i:oc_offset+3*i+3] = [1, 0, 0]
-            elif c in goal_word:
-                # Char at position i = no, other chars stay as they are
-                self.vec[offset+3*i:offset+3*i+3] = [1, 0, 0]
-            else:
-                # Char at all positions = no
-                self.vec[offset:offset+3*WORDLE_N] = [1, 0, 0]*WORDLE_N
-
-
 class WordleEnvBase(gym.Env):
     """
     Actions:
@@ -85,6 +26,7 @@ class WordleEnvBase(gym.Env):
         * 13k for full vocab
     State space is defined as:
         * 6 possibilities for turns (WORDLE_TURNS)
+        * Each VALID_CHAR has a state of 0/1 for whether it's been guessed before
         * For each in VALID_CHARS [A-Z] can be in one of 3^WORDLE_N states: (No, Maybe, Yes)
         for full game, this is (3^5)^26
         Each state has 1 + 5*26 possibilities
@@ -92,20 +34,8 @@ class WordleEnvBase(gym.Env):
         Reward is 10 for guessing the right word, -10 for not guessing the right word after 6 guesses.
     Starting State:
         Random goal word
-        Initial state with turn 0, all chars MAYBE
-    Episode Termination:
-
-        Pole Angle is more than 12 degrees.
-        Cart Position is more than 2.4 (center of the cart reaches the edge of
-        the display).
-        Episode length is greater than 200.
-        Solved Requirements:
-        Considered solved when the average return is greater than or equal to
-        195.0 over 100 consecutive trials.
+        Initial state with turn 0, all chars Unvisited + Maybe
     """
-
-    #metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 50}
-
     def __init__(self, words: List[str],
                  max_turns: int,
                  allowable_words: Optional[int] = None,
@@ -123,14 +53,12 @@ class WordleEnvBase(gym.Env):
             self.frequencies = np.array(frequencies, dtype=np.float32) / sum(frequencies)
 
         self.action_space = spaces.Discrete(len(self.words))
-        self.observation_space = spaces.MultiDiscrete(WordleState.get_nvec(self.max_turns))
-        self._initial_state = WordleState.new(self.max_turns)
+        self.observation_space = spaces.MultiDiscrete(wordle.state.get_nvec(self.max_turns))
 
         self.done = True
         self.goal_word: int = -1
 
-        # self.viewer = None
-        self.state: WordleState = None
+        self.state: wordle.state.WordleState = None
 
     def step(self, action):
         if self.done:
@@ -140,31 +68,31 @@ class WordleEnvBase(gym.Env):
                 "should always call 'reset()' once you receive 'done = "
                 "True' -- any further steps are undefined behavior."
             )
-        self.state = self.state.copy()
-        self.state.update(self.words[action],
-                          self.words[self.goal_word])
+        self.state = wordle.state.update(state=self.state,
+                                         word=self.words[action],
+                                         goal_word=self.words[self.goal_word])
 
         reward = 0
         if action == self.goal_word:
             self.done = True
             #reward = REWARD
-            if self.state.remaining_steps() == self.max_turns-1:
+            if wordle.state.remaining_steps(self.state) == self.max_turns-1:
                 reward = 0#-10*REWARD  # No reward for guessing off the bat
             else:
                 #reward = REWARD*(self.state.remaining_steps() + 1) / self.max_turns
                 reward = REWARD
-        elif self.state.remaining_steps() == 0:
+        elif wordle.state.remaining_steps(self.state) == 0:
             self.done = True
             reward = -REWARD
 
         return self.state.copy(), reward, self.done, {"goal_id": self.goal_word}
 
     def reset(self, seed: Optional[int] = None):
-        self.state = WordleState.new(self.max_turns)
+        self.state = wordle.state.new(self.max_turns)
         self.done = False
         self.goal_word = int(np.random.random()*self.allowable_words)
 
-        return self.state.copy()
+        return self.state
 
 
 class WordleEnv10(WordleEnvBase):
@@ -175,6 +103,12 @@ class WordleEnv10(WordleEnvBase):
 class WordleEnv100(WordleEnvBase):
     def __init__(self):
         super().__init__(words=_load_words(100), max_turns=6)
+
+
+class WordleEnv100OneAction(WordleEnvBase):
+    def __init__(self):
+        super().__init__(words=_load_words(100), allowable_words=1, max_turns=6)
+
 
 class WordleEnv100FullAction(WordleEnvBase):
     def __init__(self):
@@ -191,7 +125,7 @@ class WordleEnv1000FullAction(WordleEnvBase):
         super().__init__(words=_load_words(), allowable_words=1000, max_turns=6)
 
 
-class WordleEnv(WordleEnvBase):
+class WordleEnvFull(WordleEnvBase):
     def __init__(self):
         super().__init__(words=_load_words(), max_turns=6)
 
