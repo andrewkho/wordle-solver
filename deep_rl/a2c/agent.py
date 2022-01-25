@@ -23,18 +23,12 @@ class ActorCriticAgent:
         Returns:
             action defined by policy
         """
-        # if not isinstance(states, list):
-        #     states = [states]
-        #
-        # if not isinstance(states, torch.Tensor):
-        #     states = torch.tensor(states, device=device)
-        #
         logprobs, _ = self.net(torch.tensor([states], device=device))
         probabilities = logprobs.exp().squeeze(dim=-1)
         prob_np = probabilities.data.cpu().numpy()
 
         # take the numpy values and randomly select action based on prob distribution
-        #actions = [np.random.choice(len(prob), p=prob) for prob in prob_np]
+        # Note that this is much faster than numpy.random.choice
         cdf = np.cumsum(prob_np, axis=1)
         select = np.random.random(cdf.shape[0])
         actions = [
