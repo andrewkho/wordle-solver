@@ -1,12 +1,7 @@
-from typing import Tuple, List
+from typing import List
 
 import numpy as np
 import torch
-from torch import nn
-import gym
-
-from wordle import wordle
-from deep_q.experience import SequenceReplay, Experience
 
 
 class ActorCriticAgent:

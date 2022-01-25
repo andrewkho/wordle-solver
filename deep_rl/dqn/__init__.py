@@ -1,6 +1,6 @@
-from deep_q.embeddingchars import EmbeddingChars
-from deep_q.mlp import MLP
-from deep_q.sumchars import SumChars
+from dqn.embeddingchars import EmbeddingChars
+from dqn.mlp import MLP
+from dqn.sumchars import SumChars
 
 _registry = {}
 

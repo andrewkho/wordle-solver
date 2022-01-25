@@ -15,8 +15,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 import a2c
 from a2c.agent import ActorCriticAgent
+from a2c.experience import ExperienceSourceDataset
+
 import wordle.state
-from sac.experience import ExperienceSourceDataset
 
 
 class AdvantageActorCritic(LightningModule):

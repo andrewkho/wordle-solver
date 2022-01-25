@@ -1,43 +1,53 @@
-import os
+from dataclasses import dataclass
+from typing import Tuple, List
+
 from collections import OrderedDict
-from typing import List, Tuple
+
+import fire
+import torch
+from torch import nn
+from torch.utils.tensorboard import SummaryWriter
+from torch.optim import Adam
+from torch.optim.optimizer import Optimizer
+from torch.utils.data import DataLoader
+
+from pytorch_lightning import Trainer, LightningModule
+from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+from pytorch_lightning.callbacks import Callback
+
+import dqn
+from dqn.agent import Agent
+from dqn.experience import SequenceReplay, RLDataset, Experience
+
+import wordle.state
 
 import gym
-import torch
-from pytorch_lightning import LightningModule
-from pytorch_lightning.utilities import DistributedType
-from torch import Tensor, nn
-from torch.optim import Adam, Optimizer
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
 
-import deep_q
-from deep_q.agent import Agent
-from deep_q.experience import SequenceReplay, RLDataset
+AVAIL_GPUS = min(1, torch.cuda.device_count())
 
 
 class DQNLightning(LightningModule):
     """Basic DQN Model."""
 
     def __init__(
-        self,
-        initialize_winning_replays: str = None,
-        deep_q_network: str = 'SumChars',
-        batch_size: int = 1024,
-        lr: float = 1e-2,
-        weight_decay: float = 1.e-4,
-        env: str = "WordleEnv-v0",
-        gamma: float = 0.9,
-        sync_rate: int = 10,
-        replay_size: int = 1000,
-        hidden_size: int = 256,
-        num_workers: int = 0,
-        warm_start_size: int = 1000,
-        eps_last_frame: int = 10000,
-        eps_start: float = 1.0,
-        eps_end: float = 0.01,
-        episode_length: int = 25,
-        warm_start_steps: int = 1000,
+            self,
+            initialize_winning_replays: str = None,
+            deep_q_network: str = 'SumChars',
+            batch_size: int = 1024,
+            lr: float = 1e-2,
+            weight_decay: float = 1.e-4,
+            env: str = "WordleEnv-v0",
+            gamma: float = 0.9,
+            sync_rate: int = 10,
+            replay_size: int = 1000,
+            hidden_size: int = 256,
+            num_workers: int = 0,
+            warm_start_size: int = 1000,
+            eps_last_frame: int = 10000,
+            eps_start: float = 1.0,
+            eps_end: float = 0.01,
+            episode_length: int = 25,
+            warm_start_steps: int = 1000,
     ) -> None:
         """
         Args:
@@ -68,9 +78,9 @@ class DQNLightning(LightningModule):
 
         print("dqn:", self.env.spec.id, self.env.spec.max_episode_steps, n_actions, obs_size)
 
-        self.net = deep_q.construct(
+        self.net = dqn.construct(
             self.hparams.deep_q_network, obs_size=obs_size, n_actions=n_actions, hidden_size=hidden_size, word_list=self.env.words)
-        self.target_net = deep_q.construct(
+        self.target_net = dqn.construct(
             self.hparams.deep_q_network, obs_size=obs_size, n_actions=n_actions, hidden_size=hidden_size, word_list=self.env.words)
 
         self.dataset = RLDataset(
@@ -78,7 +88,8 @@ class DQNLightning(LightningModule):
             losers=SequenceReplay(self.hparams.replay_size//2),
             sample_size=self.hparams.episode_length)
 
-        self.agent = Agent(self.env, self.dataset.winners, self.dataset.losers)
+        self.agent = Agent(self.net, self.env.action_space)
+        self.state = self.env.reset()
         self.total_reward = 0
         self.episode_reward = 0
         self.total_games_played = 0
@@ -92,9 +103,9 @@ class DQNLightning(LightningModule):
             steps: number of random steps to populate the buffer with
         """
         for _ in range(steps):
-            self.agent.play_game(self.net, epsilon=1.)
+            self.play_game(epsilon=1., device=self.device)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Passes in a state x through the network and gets the q_values of each action as an output.
 
         Args:
@@ -106,7 +117,7 @@ class DQNLightning(LightningModule):
         output = self.net(x)
         return output
 
-    def dqn_mse_loss(self, batch: Tuple) -> Tensor:
+    def dqn_mse_loss(self, batch: Tuple) -> torch.Tensor:
         """Calculates the mse loss using a mini batch from the replay buffer.
 
         Args:
@@ -128,7 +139,42 @@ class DQNLightning(LightningModule):
 
         return nn.MSELoss()(state_action_values, expected_state_action_values)
 
-    def training_step(self, batch: Tuple[Tensor, Tensor], nb_batch) -> OrderedDict:
+    def play_game(
+            self,
+            epsilon: float = 0.0,
+            device: str = "cpu",
+    ) -> Tuple[float, bool]:
+        done = False
+        cur_seq = list()
+        reward = 0
+        while not done:
+            reward, done, exp = self.play_step(epsilon, device)
+            cur_seq.append(exp)
+
+        winning_steps = self.env.max_turns - wordle.state.remaining_steps(self.state)
+        if reward > 0:
+            self.dataset.winners.append(cur_seq)
+        else:
+            self.dataset.losers.append(cur_seq)
+        self.state = self.env.reset()
+
+        return reward, winning_steps
+
+    def play_step(
+            self,
+            epsilon: float = 0.0,
+            device: str = "cpu",
+    ) -> Tuple[float, bool, Experience]:
+        action = self.agent.get_action(self.state, epsilon, device)
+
+        # do step in the environment
+        new_state, reward, done, _ = self.env.step(action)
+        exp = Experience(self.state, action, reward, done, new_state, self.env.goal_word)
+
+        self.state = new_state
+        return reward, done, exp
+
+    def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], nb_batch) -> OrderedDict:
         """Carries out a single step through the environment to update the replay buffer. Then calculates loss
         based on the minibatch recieved.
 
@@ -143,10 +189,10 @@ class DQNLightning(LightningModule):
         epsilon = max(
             self.hparams.eps_end,
             self.hparams.eps_start - self.global_step / self.hparams.eps_last_frame,
-        )
+            )
 
         # step through environment with agent
-        reward, winning_steps = self.agent.play_game(self.net, epsilon, device)
+        reward, winning_steps = self.play_game(epsilon, device)
         self.total_games_played += 1
         if reward > 0:
             self._wins += 1
@@ -158,9 +204,6 @@ class DQNLightning(LightningModule):
 
         # calculates training loss
         loss = self.dqn_mse_loss(batch)
-
-        if self.trainer._distrib_type in {DistributedType.DP, DistributedType.DDP2}:
-            loss = loss.unsqueeze(0)
 
         self.total_reward = self.episode_reward
         self.episode_reward = 0
@@ -184,33 +227,13 @@ class DQNLightning(LightningModule):
                 winner = self.dataset.winners.buffer[-1]
                 game = f"goal: {self.env.words[winner[0].goal_id]}\n"
                 for i, xp in enumerate(winner):
-                    # tried = ''.join(
-                    #     chr(ord('A') + i)
-                    #     for i, seen in enumerate(xp.state[1:27])
-                    #     if seen
-                    # )
-                    offset = 1+26 + 0
-                    tried = ''.join(
-                        str(x)
-                        for x in xp.state[offset:offset+15]
-                    )
-                    game += f"{i}, {tried}: {self.env.words[xp.action]}\n"
+                    game += f"{i}: {self.env.words[xp.action]}\n"
                 self.writer.add_text("game sample/winner", game, global_step=self.global_step)
             if len(self.dataset.losers) > 0:
                 loser = self.dataset.losers.buffer[-1]
                 game = f"goal: {self.env.words[loser[0].goal_id]}\n"
                 for i, xp in enumerate(loser):
-                    # tried = ''.join(
-                    #     chr(ord('A') + i)
-                    #     for i, seen in enumerate(xp.state[1:27])
-                    #     if seen
-                    # )
-                    offset = 1+26 + 0
-                    tried = ''.join(
-                        str(x)
-                        for x in xp.state[offset:offset+15]
-                    )
-                    game += f"{i}, {tried}: {self.env.words[xp.action]}\n"
+                    game += f"{i}: {self.env.words[xp.action]}\n"
                 self.writer.add_text("game sample/loser", game, global_step=self.global_step)
             self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
             self.writer.add_scalar("total_games_played", self.total_games_played, global_step=self.global_step)
@@ -249,3 +272,66 @@ class DQNLightning(LightningModule):
     def get_device(self, batch) -> str:
         """Retrieve device currently being used by minibatch."""
         return batch[0].device.index if self.on_gpu else "cpu"
+
+
+def main(
+        resume_from_checkpoint: str = None,
+        initialize_winning_replays: str = None,
+        env: str = "WordleEnv100-v0",
+        deep_q_network: str = 'SumChars',
+        max_epochs: int = 500,
+        checkpoint_every_n_epochs: int = 1000,
+        num_workers: int = 0,
+        replay_size: int = 1000,
+        hidden_size: int = 256,
+        sync_rate: int = 100,
+        lr: float = 1.e-3,
+        weight_decay: float = 1.e-5,
+        last_frame_cutoff: float=0.8,
+        max_eps: float=1.,
+        min_eps: float=0.01,
+        episode_length: int = 512,
+        batch_size: int = 512,
+):
+    model = DQNLightning(
+        initialize_winning_replays=initialize_winning_replays,
+        deep_q_network=deep_q_network,
+        env=env,
+        lr=lr,
+        weight_decay=weight_decay,
+        replay_size=replay_size,
+        batch_size=batch_size,
+        sync_rate=sync_rate,
+        episode_length=episode_length,
+        hidden_size=hidden_size,
+        num_workers=num_workers,
+        eps_start=max_eps,
+        eps_end=min_eps,
+        eps_last_frame=int(max_epochs*last_frame_cutoff),
+    )
+
+    @dataclass
+    class SaveBufferCallback(Callback):
+        buffer: SequenceReplay
+        filename: str
+
+        def on_train_end(self, trainer, pl_module):
+            path = f'{trainer.log_dir}/checkpoints'
+            fname = self.filename,
+            self.buffer.save(f'{path}/{fname}')
+
+    save_buffer_callback = SaveBufferCallback(buffer=model.dataset.winners, filename='sequence_buffer.pkl')
+    model_checkpoint = ModelCheckpoint(every_n_epochs=checkpoint_every_n_epochs)
+    trainer = Trainer(
+        gpus=AVAIL_GPUS,
+        max_epochs=max_epochs,
+        enable_checkpointing=True,
+        callbacks=[model_checkpoint, save_buffer_callback],
+        resume_from_checkpoint=resume_from_checkpoint,
+    )
+
+    trainer.fit(model)
+
+
+if __name__ == '__main__':
+    fire.Fire(main)
