@@ -48,6 +48,6 @@ register(
 
 register(
     id="WordleEnvReal-v0",
-    entry_point="wordle.wordle:WordleEnv",
+    entry_point="wordle.wordle:WordleEnvReal",
     max_episode_steps=500,
 )
