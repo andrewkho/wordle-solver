@@ -321,7 +321,7 @@ class AdvantageActorCritic(LightningModule):
         arg_parser.add_argument("--critic_beta", type=float, default=0.5, help="critic loss coefficient")
         arg_parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
         arg_parser.add_argument("--epoch_len", type=int, default=10, help="Batches per epoch")
-        arg_parser.add_argument("--lr", type=float, default=1e-3, help="learning rate")
+        arg_parser.add_argument("--lr", type=float, default=1e-4, help="learning rate")
         arg_parser.add_argument("--env", type=str, default="WordleEnv100-v0", help="gym environment tag")
         arg_parser.add_argument("--network_name", type=str, default="SumChars", help="Network to use")
         arg_parser.add_argument("--n_hidden", type=int, default="1", help="Number of hidden layers")

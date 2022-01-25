@@ -283,7 +283,7 @@ def main(
         initialize_winning_replays: str = None,
         env: str = "WordleEnv100-v0",
         deep_q_network: str = 'SumChars',
-        max_epochs: int = 500,
+        max_epochs: int = 5000,
         checkpoint_every_n_epochs: int = 1000,
         num_workers: int = 0,
         replay_size: int = 1000,

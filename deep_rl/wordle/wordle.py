@@ -107,6 +107,11 @@ class WordleEnv100(WordleEnvBase):
 
 class WordleEnv100OneAction(WordleEnvBase):
     def __init__(self):
+        super().__init__(words=_load_words(100), allowable_words=1, max_turns=6)
+
+
+class WordleEnv100TwoAction(WordleEnvBase):
+    def __init__(self):
         super().__init__(words=_load_words(100), allowable_words=2, max_turns=6)
 
 
