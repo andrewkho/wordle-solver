@@ -32,7 +32,10 @@ def main(
             state, reward, done, _ = env.step(action)
             print(f"Turn {i+1}: {env.words[action]} ({action}), reward ({reward})")
             if done:
-                print(f"Done! took {i+1} guesses!")
+                if reward >= 0:
+                    print(f"Done! took {i+1} guesses!")
+                else:
+                    print(f"LOSE! took {i + 1} guesses!")
                 break
 
 
