@@ -1,23 +1,20 @@
-"""Advantage Actor Critic (A2C)"""
 from argparse import ArgumentParser
 from collections import OrderedDict
-from typing import Any, Iterator, List, Tuple
+from typing import Any, List, Tuple, Iterator
 
-import numpy as np
 import gym
+import numpy as np
 import torch
-from pytorch_lightning import LightningModule, Trainer, seed_everything
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning import LightningModule
 from torch import Tensor, optim
-from torch.optim.optimizer import Optimizer
+from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import a2c
+import wordle.state
 from a2c.agent import ActorCriticAgent
 from a2c.experience import ExperienceSourceDataset
-
-import wordle.state
 
 
 class AdvantageActorCritic(LightningModule):
@@ -25,10 +22,6 @@ class AdvantageActorCritic(LightningModule):
     Paper Authors: Volodymyr Mnih, Adrià Puigdomènech Badia, et al.
     Model implemented by:
         - `Jason Wang <https://github.com/blahBlahhhJ>`_
-    Example:
-        >>> from pl_bolts.models.rl import AdvantageActorCritic
-        ...
-        >>> model = AdvantageActorCritic("CartPole-v0")
     """
 
     def __init__(
@@ -338,27 +331,3 @@ class AdvantageActorCritic(LightningModule):
         )
 
         return arg_parser
-
-
-def cli_main() -> None:
-    parser = ArgumentParser(add_help=False)
-
-    # trainer args
-    parser = Trainer.add_argparse_args(parser)
-
-    # model args
-    parser = AdvantageActorCritic.add_model_specific_args(parser)
-    args = parser.parse_args()
-
-    model = AdvantageActorCritic(**args.__dict__)
-
-    # save checkpoints based on avg_reward
-    checkpoint_callback = ModelCheckpoint()
-
-    seed_everything(123)
-    trainer = Trainer.from_argparse_args(args, deterministic=True, callbacks=checkpoint_callback)
-    trainer.fit(model)
-
-
-if __name__ == '__main__':
-    cli_main()

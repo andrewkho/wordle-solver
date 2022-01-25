@@ -94,6 +94,9 @@ class WordleEnvBase(gym.Env):
 
         return self.state.copy()
 
+    def set_goal_word(self, goal_word: str):
+        self.goal_word = self.words.index(goal_word)
+
 
 class WordleEnv10(WordleEnvBase):
     def __init__(self):

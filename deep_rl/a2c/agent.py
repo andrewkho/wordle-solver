@@ -32,3 +32,24 @@ class ActorCriticAgent:
         ]
 
         return actions
+
+
+class GreedyActorCriticAgent:
+    def __init__(self, net):
+        self.net = net
+
+    def __call__(self, states: torch.Tensor, device: str) -> List[int]:
+        """Takes in the current state and returns the action based on the agents policy.
+        Args:
+            states: current state of the environment
+            device: the device used for the current batch
+        Returns:
+            action defined by policy
+        """
+        logprobs, _ = self.net(torch.tensor([states], device=device))
+        probabilities = logprobs.exp().squeeze(dim=-1)
+        prob_np = probabilities.data.cpu().numpy()
+
+        actions = np.argmax(prob_np, axis=1)
+
+        return list(actions)
