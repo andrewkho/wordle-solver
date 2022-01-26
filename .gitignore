@@ -1,5 +1,6 @@
 *.pyc
 env
+server-env
 .idea
 lightning_logs
 runs
