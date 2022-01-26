@@ -4,3 +4,4 @@ env
 lightning_logs
 runs
 *.profile
+checkpoints
