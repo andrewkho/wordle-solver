@@ -1,3 +1,4 @@
+import collections
 from argparse import ArgumentParser
 from collections import OrderedDict
 from typing import Any, List, Tuple, Iterator
@@ -69,17 +70,9 @@ class AdvantageActorCritic(LightningModule):
         self.agent = ActorCriticAgent(self.net)
 
         # Tracking metrics
-        self.total_rewards = [0]
         self.episode_reward = 0
         self.done_episodes = 0
-        self.avg_rewards = 0.0
-        self.avg_reward_len = avg_reward_len
         self.eps = np.finfo(np.float32).eps.item()
-        self.batch_states: List = []
-        self.batch_actions: List = []
-        self.batch_rewards: List = []
-        self.batch_masks: List = []
-        self.batch_targets: List = []
 
         self._winning_steps = 0
         self._winning_rewards = 0
@@ -88,7 +81,7 @@ class AdvantageActorCritic(LightningModule):
         self._losses = 0
         self._last_win = []
         self._last_loss = []
-        self._cur_seq = []
+        self._seq = []
 
         self.state = self.env.reset()
 
@@ -121,17 +114,23 @@ class AdvantageActorCritic(LightningModule):
             returns: a torch tensor
         """
         while True:
+            batch_states = []
+            batch_actions = []
+            batch_rewards = []
+            batch_masks = []
+            batch_targets = []
             for _ in range(self.hparams.batch_size):
                 action = self.agent(self.state, self.device)[0]
 
                 next_state, reward, done, aux = self.env.step(action)
 
+                batch_states.append(self.state)
+                batch_actions.append(action)
+                batch_rewards.append(reward)
+                batch_masks.append(done)
+                batch_targets.append(aux['goal_id'])
+
                 self._seq.append(Experience(self.state.copy(), action, reward, aux['goal_id']))
-                self.batch_rewards.append(reward)
-                self.batch_actions.append(action)
-                self.batch_states.append(self.state)
-                self.batch_masks.append(done)
-                self.batch_targets.append(aux['goal_id'])
                 self.state = next_state
                 self.episode_reward += reward
 
@@ -149,21 +148,13 @@ class AdvantageActorCritic(LightningModule):
 
                     self.done_episodes += 1
                     self.state = self.env.reset()
-                    self.total_rewards.append(self.episode_reward)
                     self.episode_reward = 0
-                    self.avg_rewards = float(np.mean(self.total_rewards[-self.avg_reward_len :]))
 
             _, last_value = self.forward(self.state)
 
-            returns = self.compute_returns(self.batch_rewards, self.batch_masks, last_value)
+            returns = self.compute_returns(batch_rewards, batch_masks, last_value)
             for idx in range(self.hparams.batch_size):
-                yield self.batch_states[idx], self.batch_actions[idx], returns[idx], self.batch_targets[idx]
-
-            self.batch_states = []
-            self.batch_actions = []
-            self.batch_rewards = []
-            self.batch_masks = []
-            self.batch_targets = []
+                yield batch_states[idx], batch_actions[idx], returns[idx], batch_targets[idx]
 
     def compute_returns(
             self,
@@ -242,35 +233,17 @@ class AdvantageActorCritic(LightningModule):
         loss = self.loss(states, actions, returns)
 
         if self.global_step % 50 == 0:
+            def get_game_string(seq):
+                game = f'goal: {self.env.words[seq[0].goal_id]}\n'
+                for i, exp in enumerate(seq):
+                    game += f'{i}: {self.env.words[exp.action]}\n'
+                return game
+
             if len(self._last_win):
-                game = f'goal: {self.env.words[self._last_win[0].goal_id]}'
-                for i, exp in enumerate(self._last_win):
-                    game += f'{i}: {self.env.words[exp.action]}\n'
-
-                self.writer.add_text("last_win", game, global_step=self.global_step)
+                self.writer.add_text("last_win", get_game_string(self._last_win), global_step=self.global_step)
             if len(self._last_loss):
-                game = f'goal: {self.env.words[self._last_win[0].goal_id]}'
-                for i, exp in enumerate(self._last_win):
-                    game += f'{i}: {self.env.words[exp.action]}\n'
+                self.writer.add_text("last_loss", get_game_string(self._last_loss), global_step=self.global_step)
 
-                self.writer.add_text("last_loss", game, global_step=self.global_step)
-
-            # # Find a sequence
-            # i = 0
-            # while i < len(states):
-            #     if states[i][0] == self.env.max_turns:
-            #         break
-            #     i += 1
-            # # Walk through game
-            # game = f"goal: {self.env.words[goal_ids[i]]}\n"
-            # strt = i
-            # game += f'{0}: {self.env.words[actions[i]]}\n'
-            # i += 1
-            # while i < len(states) and states[i][0] != self.env.max_turns:
-            #     game += f'{i-strt}: {self.env.words[actions[i]]}\n'
-            #     i += 1
-            #
-            # self.writer.add_text("game sample", game, global_step=self.global_step)
             self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
             self.writer.add_scalar("total_games_played", self.done_episodes, global_step=self.global_step)
 
@@ -289,13 +262,10 @@ class AdvantageActorCritic(LightningModule):
 
         log = {
             "episodes": self.done_episodes,
-            "reward": self.total_rewards[-1],
-            "avg_reward": self.avg_rewards,
         }
         return OrderedDict(
             {
                 "loss": loss,
-                "avg_reward": self.avg_rewards,
                 "log": log,
                 "progress_bar": log,
             }

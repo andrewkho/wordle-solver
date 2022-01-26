@@ -19,7 +19,7 @@ def cli_main() -> None:
 
     model = AdvantageActorCritic(**args.__dict__)
     # save checkpoints based on avg_reward
-    checkpoint_callback = ModelCheckpoint()
+    checkpoint_callback = ModelCheckpoint(every_n_train_steps=100)
 
     seed_everything(123)
     trainer = Trainer.from_argparse_args(args, deterministic=True, callbacks=checkpoint_callback)
