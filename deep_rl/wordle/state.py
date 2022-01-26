@@ -13,6 +13,8 @@ where status has codes
  [0, 1, 0] - char is maybe in this spot
  [0, 0, 1] - char is definitely in this spot
 """
+from typing import List
+
 import numpy as np
 
 from wordle.const import WORDLE_CHARS, WORDLE_N
@@ -33,6 +35,56 @@ def new(max_turns: int) -> WordleState:
 
 def remaining_steps(state: WordleState) -> int:
     return state[0]
+
+
+NO = 0
+SOMEWHERE = 1
+YES = 2
+
+
+def update_from_mask(state: WordleState, word: str, mask: List[int]) -> WordleState:
+    """
+    return a copy of state that has been updated to new state
+
+    From a mask we need slighty different logic since we don't know the
+    goal word.
+
+    :param state:
+    :param word:
+    :param goal_word:
+    :return:
+    """
+    state = state.copy()
+
+    # We need two passes because first pass sets definitely yesses
+    # second pass sets the no's for those who aren't already yes
+    state[0] -= 1
+    for i, c in enumerate(word):
+        cint = ord(c) - ord(WORDLE_CHARS[0])
+        offset = 1 + len(WORDLE_CHARS) + cint * WORDLE_N * 3
+        state[1 + cint] = 1
+        if mask[i] == YES:
+            # char at position i = yes, all other chars at position i == no
+            state[offset + 3 * i:offset + 3 * i + 3] = [0, 0, 1]
+            for ocint in range(len(WORDLE_CHARS)):
+                if ocint != cint:
+                    oc_offset = 1 + len(WORDLE_CHARS) + ocint * WORDLE_N * 3
+                    state[oc_offset + 3 * i:oc_offset + 3 * i + 3] = [1, 0, 0]
+
+    for i, c in enumerate(word):
+        cint = ord(c) - ord(WORDLE_CHARS[0])
+        offset = 1 + len(WORDLE_CHARS) + cint * WORDLE_N * 3
+        if mask[i] == SOMEWHERE:
+            # Char at position i = no, other chars stay as they are
+            state[offset + 3 * i:offset + 3 * i + 3] = [1, 0, 0]
+        elif mask[i] == NO:
+            # Char at all positions = no
+            for j in range(WORDLE_N):
+                # Only flip no if previously was maybe
+                if state[offset+3*j:offset+3*j+3][1] == 1:
+                    state[offset+3*j:offset+3*j+3] = [1, 0, 0]
+
+    return state
 
 
 def update(state: WordleState, word: str, goal_word: str) -> WordleState:
