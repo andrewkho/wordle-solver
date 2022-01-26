@@ -14,7 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 import a2c
 import wordle.state
 from a2c.agent import ActorCriticAgent
-from a2c.experience import ExperienceSourceDataset
+from a2c.experience import ExperienceSourceDataset, Experience
 
 
 class AdvantageActorCritic(LightningModule):
@@ -86,6 +86,9 @@ class AdvantageActorCritic(LightningModule):
         self._total_rewards = 0
         self._wins = 0
         self._losses = 0
+        self._last_win = []
+        self._last_loss = []
+        self._cur_seq = []
 
         self.state = self.env.reset()
 
@@ -123,6 +126,7 @@ class AdvantageActorCritic(LightningModule):
 
                 next_state, reward, done, aux = self.env.step(action)
 
+                self._seq.append(Experience(self.state.copy(), action, reward, aux['goal_id']))
                 self.batch_rewards.append(reward)
                 self.batch_actions.append(action)
                 self.batch_states.append(self.state)
@@ -136,9 +140,11 @@ class AdvantageActorCritic(LightningModule):
                         self._winning_steps += self.env.max_turns - wordle.state.remaining_steps(self.state)
                         self._wins += 1
                         self._winning_rewards += self.episode_reward
+                        self._last_win = self._seq
                     else:
                         self._losses += 1
-
+                        self._last_loss = self._seq
+                    self._seq = []
                     self._total_rewards += self.episode_reward
 
                     self.done_episodes += 1
@@ -236,22 +242,35 @@ class AdvantageActorCritic(LightningModule):
         loss = self.loss(states, actions, returns)
 
         if self.global_step % 50 == 0:
-            # Find a sequence
-            i = 0
-            while i < len(states):
-                if states[i][0] == self.env.max_turns:
-                    break
-                i += 1
-            # Walk through game
-            game = f"goal: {self.env.words[goal_ids[i]]}\n"
-            strt = i
-            game += f'{0}: {self.env.words[actions[i]]}\n'
-            i += 1
-            while i < len(states) and states[i][0] != self.env.max_turns:
-                game += f'{i-strt}: {self.env.words[actions[i]]}\n'
-                i += 1
+            if len(self._last_win):
+                game = f'goal: {self.env.words[self._last_win[0].goal_id]}'
+                for i, exp in enumerate(self._last_win):
+                    game += f'{i}: {self.env.words[exp.action]}\n'
 
-            self.writer.add_text("game sample", game, global_step=self.global_step)
+                self.writer.add_text("last_win", game, global_step=self.global_step)
+            if len(self._last_loss):
+                game = f'goal: {self.env.words[self._last_win[0].goal_id]}'
+                for i, exp in enumerate(self._last_win):
+                    game += f'{i}: {self.env.words[exp.action]}\n'
+
+                self.writer.add_text("last_loss", game, global_step=self.global_step)
+
+            # # Find a sequence
+            # i = 0
+            # while i < len(states):
+            #     if states[i][0] == self.env.max_turns:
+            #         break
+            #     i += 1
+            # # Walk through game
+            # game = f"goal: {self.env.words[goal_ids[i]]}\n"
+            # strt = i
+            # game += f'{0}: {self.env.words[actions[i]]}\n'
+            # i += 1
+            # while i < len(states) and states[i][0] != self.env.max_turns:
+            #     game += f'{i-strt}: {self.env.words[actions[i]]}\n'
+            #     i += 1
+            #
+            # self.writer.add_text("game sample", game, global_step=self.global_step)
             self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
             self.writer.add_scalar("total_games_played", self.done_episodes, global_step=self.global_step)
 

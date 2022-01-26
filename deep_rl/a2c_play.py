@@ -38,11 +38,16 @@ def suggest(agent, env):
         while True:
             guess = agent(state, "cpu")[0]
             print(f"I suggest", env.words[guess])
-            word_mask = input("<word> <mask> or done: ")
+            word_mask = input("<mask>, <word mask>, or done: ")
             if word_mask.lower() == 'done':
                 break
             try:
-                word, mask = word_mask.strip().split(' ')
+                word_mask = word_mask.strip().split(' ')
+                if len(word_mask) == 2:
+                    word, mask = word_mask
+                else:
+                    word = env.words[guess]
+                    mask = word_mask[0]
                 word = word.upper()
                 assert word in env.words
                 mask_arr = [int(i) for i in mask]
@@ -50,9 +55,6 @@ def suggest(agent, env):
                 assert len(mask_arr) == 5
 
                 state = wordle.state.update_from_mask(state, word, mask_arr)
-                offset_p = ord('P') - ord('A')
-                offset = 27 + offset_p*15
-                print(word, mask_arr, state[offset:offset+15])
             except:
                 print(f"Failed to parse {word_mask}!")
                 continue
@@ -73,9 +75,6 @@ def goal(agent, env):
             action = agent(state, "cpu")[0]
             state, reward, done, _ = env.step(action)
             print(f"Turn {i+1}: {env.words[action]} ({action}), reward ({reward})")
-            offset_p = ord('P') - ord('A')
-            offset = 27 + offset_p * 15
-            print(state[offset:offset + 15])
             if done:
                 if reward >= 0:
                     print(f"Done! took {i+1} guesses!")

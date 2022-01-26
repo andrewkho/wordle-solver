@@ -13,8 +13,8 @@ where status has codes
  [0, 1, 0] - char is maybe in this spot
  [0, 0, 1] - char is definitely in this spot
 """
+import collections
 from typing import List
-
 import numpy as np
 
 from wordle.const import WORDLE_CHARS, WORDLE_N
@@ -56,6 +56,8 @@ def update_from_mask(state: WordleState, word: str, mask: List[int]) -> WordleSt
     """
     state = state.copy()
 
+    prior_yes = []
+    prior_maybe = []
     # We need two passes because first pass sets definitely yesses
     # second pass sets the no's for those who aren't already yes
     state[0] -= 1
@@ -64,6 +66,7 @@ def update_from_mask(state: WordleState, word: str, mask: List[int]) -> WordleSt
         offset = 1 + len(WORDLE_CHARS) + cint * WORDLE_N * 3
         state[1 + cint] = 1
         if mask[i] == YES:
+            prior_yes.append(c)
             # char at position i = yes, all other chars at position i == no
             state[offset + 3 * i:offset + 3 * i + 3] = [0, 0, 1]
             for ocint in range(len(WORDLE_CHARS)):
@@ -75,14 +78,23 @@ def update_from_mask(state: WordleState, word: str, mask: List[int]) -> WordleSt
         cint = ord(c) - ord(WORDLE_CHARS[0])
         offset = 1 + len(WORDLE_CHARS) + cint * WORDLE_N * 3
         if mask[i] == SOMEWHERE:
+            prior_maybe.append(c)
             # Char at position i = no, other chars stay as they are
             state[offset + 3 * i:offset + 3 * i + 3] = [1, 0, 0]
         elif mask[i] == NO:
-            # Char at all positions = no
-            for j in range(WORDLE_N):
-                # Only flip no if previously was maybe
-                if state[offset+3*j:offset+3*j+3][1] == 1:
-                    state[offset+3*j:offset+3*j+3] = [1, 0, 0]
+            # Need to check this first in case there's prior maybe + yes
+            if c in prior_maybe:
+                # Then the maybe could be anywhere except here
+                state[offset+3*i:offset+3*i+3] = [1, 0, 0]
+            elif c in prior_yes:
+                # No maybe, definitely a yes, so it's zero everywhere except the yesses
+                for j in range(WORDLE_N):
+                    # Only flip no if previously was maybe
+                    if state[offset + 3 * j:offset + 3 * j + 3][1] == 1:
+                        state[offset + 3 * j:offset + 3 * j + 3] = [1, 0, 0]
+            else:
+                # Just straight up no
+                state[offset:offset+3*WORDLE_N] = [1, 0, 0]*WORDLE_N
 
     return state
 
