@@ -18,13 +18,12 @@ function simulateNetworkRequest() {
       if (isLoading) {
         fetch("/api/wordle-goal/" + goalWord)
         .then(response => {
-          console.log(response.status);
-          if (!response.ok) {
-            setGuesses("Error!" + response.msg);
-            throw new Error(response.msg);
-          }
-          return response.json()
-         }).then(resp => {
+            return [response.ok, response.json()]
+          }).then((ok, resp) => {
+            if (!ok) {
+              setGuesses("Error!" + resp.msg);
+              throw new Error(resp.msg);
+            } else {
               var output_text = '';
               if (resp.win) {
                 output_text += 'I won in ' + resp.guesses.length + ' guesses!\n';
@@ -34,8 +33,9 @@ function simulateNetworkRequest() {
               for (var i in resp.guesses) {
                 output_text += resp.guesses[i] + '\n';
               }
-              setGuesses(output_text)
-              console.log(output_text)
+              setGuesses(output_text);
+              console.log(output_text);
+            }
         })
         .catch(err => err)
         .finally(() => setLoading(false))
