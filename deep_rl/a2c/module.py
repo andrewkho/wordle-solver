@@ -84,6 +84,8 @@ class AdvantageActorCritic(LightningModule):
         self._last_loss = []
         self._seq = []
 
+        print(self.hparams.prob_play_lost_word)
+
         self._recent_losing_words = collections.deque(maxlen=1000)
 
         self.state = self.env.reset()
@@ -156,7 +158,7 @@ class AdvantageActorCritic(LightningModule):
                     if len(self._recent_losing_words) > 0:
                         if np.random.random() < self.hparams.prob_play_lost_word:
                             lost_idx = int(np.random.random()*len(self._recent_losing_words))
-                            self.env.goal_word = self._recent_losing_words[lost_idx]
+                            self.env.set_goal_id(self._recent_losing_words[lost_idx])
 
                     self.episode_reward = 0
 

@@ -101,6 +101,9 @@ class WordleEnvBase(gym.Env):
     def set_goal_word(self, goal_word: str):
         self.goal_word = self.words.index(goal_word)
 
+    def set_goal_id(self, goal_id: int):
+        self.goal_word = goal_id
+
 
 class WordleEnv10(WordleEnvBase):
     def __init__(self):
