@@ -1,10 +1,7 @@
 import fire
 
-from pytorch_lightning import Trainer
-
+import a2c.play
 import wordle.state
-from a2c.module import AdvantageActorCritic
-from a2c.agent import GreedyActorCriticAgent
 
 
 def main(
@@ -12,10 +9,7 @@ def main(
         mode: str = 'goal',
 ):
     print("Loading from checkpoint", checkpoint, "...")
-    model = AdvantageActorCritic.load_from_checkpoint(checkpoint)
-
-    agent = GreedyActorCriticAgent(model.net)
-    env = model.env
+    _, agent, env = a2c.play.load_from_checkpoint(checkpoint)
     print("Got env with", len(env.words), "words!")
 
     if mode == 'goal':
@@ -34,10 +28,10 @@ def suggest(agent, env):
           "  where 0 = not in word, 1 = somewhere in this word, 2 = in this spot")
     while True:
         print("Alright, a new game!")
-        state = env.reset()
+        word_masks = []
         while True:
-            guess = agent(state, "cpu")[0]
-            print(f"I suggest", env.words[guess])
+            guess = a2c.play.suggest(agent, env, word_masks)
+            print(f"I suggest", guess)
             word_mask = input("<mask>, <word mask>, or done: ")
             if word_mask.lower() == 'done':
                 break
@@ -46,7 +40,7 @@ def suggest(agent, env):
                 if len(word_mask) == 2:
                     word, mask = word_mask
                 else:
-                    word = env.words[guess]
+                    word = guess
                     mask = word_mask[0]
                 word = word.upper()
                 assert word in env.words
@@ -54,7 +48,7 @@ def suggest(agent, env):
                 assert all(i in (0, 1, 2) for i in mask_arr)
                 assert len(mask_arr) == 5
 
-                state = wordle.state.update_from_mask(state, word, mask_arr)
+                word_masks.append((word, mask))
             except:
                 print(f"Failed to parse {word_mask}!")
                 continue
@@ -66,21 +60,18 @@ def goal(agent, env):
         state = env.reset()
         goal_word = input("Give me a goal word: ")
         try:
-            env.set_goal_word(goal_word.upper())
-        except:
-            print("Goal word", goal_word, "not found in env words!")
-            continue
+            win, outcomes = a2c.play.goal(agent, env, goal_word)
 
-        for i in range(env.max_turns):
-            action = agent(state, "cpu")[0]
-            state, reward, done, _ = env.step(action)
-            print(f"Turn {i+1}: {env.words[action]} ({action}), reward ({reward})")
-            if done:
-                if reward >= 0:
-                    print(f"Done! took {i+1} guesses!")
-                else:
-                    print(f"LOSE! took {i+1} guesses!")
-                break
+            for i, (guess, reward) in enumerate(outcomes):
+                print(f"Turn {i+1}: {guess}, reward ({reward})")
+
+            if win:
+                print(f"Done! took {i + 1} guesses!")
+            else:
+                print(f"LOSE! took {i + 1} guesses!")
+        except Exception as e:
+            print(e)
+            continue
 
 
 if __name__ == '__main__':
