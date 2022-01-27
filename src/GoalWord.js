@@ -85,31 +85,34 @@ function GoalWord() {
 
     return (
     <center>
-    <div className="w-75 p-3">
+    <Container fluid="sm">
         <NavBar/>
-        <Container className="w-50 p-3">
+    </Container>
         <br/>
+        <div className='w-50 p-3' mw={578}>
         Enter a Goal Word
         <br/>
           <Form disabled={isLoading} onSubmit={!isLoading ? handleClick: null}>
             <Form.Group>
             <Row>
-            <Col sm={8}>
+            <Col md={6} lg={8}>
               <Form.Control value={goalWord} onChange={e => setGoalWord(e.target.value)} placeholder={goalWord} />
             </Col>
-            <Col sm={4}>
+            <Col md={6} lg={4}>
+            <div className="d-grid gap-0">
             <Button
                 variant="primary"
                 disabled={isLoading}
                 onClick={!isLoading ? handleClick: null}
             > {isLoading ? 'Waking up...' : 'Submit'} </Button>
+            </div>
             </Col>
               </Row>
             </Form.Group>
           </Form>
+          <br/>
         {renderResult()}
-        </Container>
-      </div>
+        </div>
       </center>
     );
   }
