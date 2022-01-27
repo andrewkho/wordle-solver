@@ -45,7 +45,7 @@ def _validate_mask(mask: str) -> bool:
 @app.route('/api/wordle-goal/<goal_word>', methods=['GET'])
 def wordle_goal(goal_word: str):
     if not _word_is_valid(goal_word):
-        return "word is invalid!", 400
+        return {"msg": "word is invalid!"}, 400
 
     try:
         if AGENT is None or ENV is None:
@@ -55,7 +55,6 @@ def wordle_goal(goal_word: str):
     except Exception as e:
         return str(e), 403
     return {
-        "msg": "success!",
         "win": win,
         "guesses": [guess for guess, _ in outcomes],
         "rewards": [reward for _, reward in outcomes],
@@ -66,11 +65,11 @@ def wordle_goal(goal_word: str):
 def suggest():
     words = flask.request.args['words'].split(',')
     if len(words) > 6 or any(not _word_is_valid(w) for w in words):
-        return "words are invalid!", 400
+        return {"msg": "words are invalid!"}, 400
 
     masks = flask.request.args['masks'].split(',')
     if len(masks) != len(words) or any(not _validate_mask(m) for m in masks):
-        return "words are invalid!", 400
+        return {"msg": "masks are invalid!"}, 400
 
     seq = [
         (word, [int(i) for i in mask])
@@ -79,14 +78,13 @@ def suggest():
 
     try:
         if AGENT is None or ENV is None:
-            return "Trouble loading model, maybe try again later?", 503
+            return {"msg": "Trouble loading model, maybe try again later?"}, 503
 
         suggestion = a2c.play.suggest(AGENT, ENV, sequence=seq)
     except Exception as e:
         return str(e), 403
 
     return {
-        "msg": "success!",
         "suggestion": suggestion,
     }
 
