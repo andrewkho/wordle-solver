@@ -57,18 +57,19 @@ def suggest(agent, env):
 def goal(agent, env):
     print("Goal word mode")
     while True:
-        state = env.reset()
         goal_word = input("Give me a goal word: ")
         try:
             win, outcomes = a2c.play.goal(agent, env, goal_word)
 
-            for i, (guess, reward) in enumerate(outcomes):
+            i = 0
+            for guess, reward in outcomes:
                 print(f"Turn {i+1}: {guess}, reward ({reward})")
+                i += 1
 
             if win:
-                print(f"Done! took {i + 1} guesses!")
+                print(f"Done! took {i} guesses!")
             else:
-                print(f"LOSE! took {i + 1} guesses!")
+                print(f"LOSE! took {i} guesses!")
         except Exception as e:
             print(e)
             continue
