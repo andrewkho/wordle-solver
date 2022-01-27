@@ -25,6 +25,11 @@ def hello():
     return {'msg': 'Hello world!'}
 
 
+@app.route('/<path:path>')
+def static_file(path):
+    return app.send_static_file(path)
+
+
 def _word_is_valid(word: str) -> bool:
     if len(word) != 5 or not word.isalpha():
         return False
@@ -89,9 +94,13 @@ def suggest():
 def _startup():
     global AGENT, ENV
 
-    s3_url = f's3://{S3_BUCKET_NAME}/{CHECKPOINT_PATH}'
-    print(f"Startup: Loading checkpoint from {s3_url}...")
-    _, AGENT, ENV = a2c.play.load_from_checkpoint(s3_url)
+    if not S3_BUCKET_NAME:
+        # Assume we're local
+        url = f'data/{CHECKPOINT_PATH}'
+    else:
+        url = f's3://{S3_BUCKET_NAME}/{CHECKPOINT_PATH}'
+    print(f"Startup: Loading checkpoint from {url}...")
+    _, AGENT, ENV = a2c.play.load_from_checkpoint(url)
     print("done!")
 
 
