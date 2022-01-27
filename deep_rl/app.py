@@ -20,7 +20,7 @@ def index():
     return app.send_static_file('index.html')
 
 
-@app.route('/hello', methods=['GET'])
+@app.route('/api/hello', methods=['GET'])
 def hello():
     return {'msg': 'Hello world!'}
 
@@ -42,7 +42,7 @@ def _validate_mask(mask: str) -> bool:
     return True
 
 
-@app.route('/wordle-goal/<goal_word>', methods=['GET'])
+@app.route('/api/wordle-goal/<goal_word>', methods=['GET'])
 def wordle_goal(goal_word: str):
     if not _word_is_valid(goal_word):
         return {"msg": "word is invalid!"}, 400
@@ -62,7 +62,7 @@ def wordle_goal(goal_word: str):
     }
 
 
-@app.route('/wordle-suggest', methods=['GET'])
+@app.route('/api/wordle-suggest', methods=['GET'])
 def suggest():
     words = flask.request.args['words'].split(',')
     if len(words) > 6 or any(not _word_is_valid(w) for w in words):
