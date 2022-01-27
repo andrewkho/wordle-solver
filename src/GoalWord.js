@@ -18,29 +18,27 @@ function simulateNetworkRequest() {
       if (isLoading) {
         fetch("/api/wordle-goal/" + goalWord)
         .then(response => {
-            return [response.ok, response.json()]
-          }).then((ok, resp) => {
-            if (!ok) {
-              setGuesses("Error!" + resp.msg);
-              throw new Error(resp.msg);
-            } else {
-              var output_text = '';
-              if (resp.win) {
-                output_text += 'I won in ' + resp.guesses.length + ' guesses!\n';
-              } else {
-                output_text += 'I lost!\n';
-              }
-              for (var i in resp.guesses) {
-                output_text += resp.guesses[i] + '\n';
-              }
-              setGuesses(output_text);
-              console.log(output_text);
-            }
+          if (!response.ok) {
+            setGuesses("Error! " + response.message || "Something went wrong!");
+            throw new Error(response.message);
+          }
+          return response.json();
+        }).then(resp => {
+          var output_text = '';
+          if (resp.win) {
+            output_text += 'I won in ' + resp.guesses.length + ' guesses!\n';
+          } else {
+            output_text += 'I lost!\n';
+          }
+          for (var i in resp.guesses) {
+            output_text += resp.guesses[i] + '\n';
+          }
+          setGuesses(output_text);
+          console.log(output_text);
         })
         .catch(err => err)
         .finally(() => setLoading(false))
       }
-      console.log("Hi!");
     }, [isLoading]);
 
     const handleClick = () => setLoading(true);
