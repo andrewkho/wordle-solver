@@ -11,7 +11,7 @@ S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', '')
 CHECKPOINT_PATH = 'checkpoints/a2c_deployed.ckpt'
 
 
-app = flask.Flask(__name__, static_folder='build/', static_url_path='/')
+app = flask.Flask(__name__, static_folder='../build/', static_url_path='/')
 app.debug = 'DEBUG' in os.environ
 
 
