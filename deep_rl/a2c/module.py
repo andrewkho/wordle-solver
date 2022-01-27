@@ -38,6 +38,7 @@ class AdvantageActorCritic(LightningModule):
             entropy_beta: float,
             critic_beta: float,
             epoch_len: int,
+            prob_play_lost_word: float,
             **kwargs: Any,
     ) -> None:
         """
@@ -82,6 +83,8 @@ class AdvantageActorCritic(LightningModule):
         self._last_win = []
         self._last_loss = []
         self._seq = []
+
+        self._recent_losing_words = collections.deque(maxlen=1000)
 
         self.state = self.env.reset()
 
@@ -143,11 +146,18 @@ class AdvantageActorCritic(LightningModule):
                     else:
                         self._losses += 1
                         self._last_loss = self._seq
+                        self._recent_losing_words.append(aux['goal_id'])
                     self._seq = []
                     self._total_rewards += self.episode_reward
 
                     self.done_episodes += 1
+                    # With some probability, override the word with one that we lost recently
                     self.state = self.env.reset()
+                    if len(self._recent_losing_words) > 0:
+                        if np.random.random() < self.hparams.prob_play_lost_word:
+                            lost_idx = int(np.random.random()*len(self._recent_losing_words))
+                            self.env.goal_word = self._recent_losing_words[lost_idx]
+
                     self.episode_reward = 0
 
             _, last_value = self.forward(self.state)
@@ -311,6 +321,7 @@ class AdvantageActorCritic(LightningModule):
         arg_parser.add_argument("--gamma", type=float, default=0.99, help="discount factor")
         arg_parser.add_argument("--seed", type=int, default=123, help="seed for training run")
         arg_parser.add_argument("--replay_size", type=int, default=1000, help="Size of replay buffer(s)")
+        arg_parser.add_argument("--prob_play_lost_word", type=float, default=0, help="Probabiilty of replaying a losing word")
 
         arg_parser.add_argument(
             "--avg_reward_len",
