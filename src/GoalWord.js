@@ -98,7 +98,11 @@ function GoalWord() {
               <Form.Control value={goalWord} onChange={e => setGoalWord(e.target.value)} placeholder={goalWord} />
             </Col>
             <Col sm={4}>
-            <Button variant="primary" disabled={isLoading}> {isLoading ? 'Waking up...' : 'Submit'} </Button>
+            <Button
+                variant="primary"
+                disabled={isLoading}
+                onClick={!isLoading ? handleClick: null}
+            > {isLoading ? 'Waking up...' : 'Submit'} </Button>
             </Col>
               </Row>
             </Form.Group>
