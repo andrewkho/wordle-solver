@@ -37,11 +37,10 @@ def suggest(
     for word, mask in sequence:
         word = word.upper()
         assert word in env.words, f'{word} not in allowed words!'
-        mask_arr = [int(i) for i in mask]
-        assert all(i in (0, 1, 2) for i in mask_arr)
-        assert len(mask_arr) == 5
+        assert all(i in (0, 1, 2) for i in mask)
+        assert len(mask) == 5
 
-        state = wordle.state.update_from_mask(state, word, mask_arr)
+        state = wordle.state.update_from_mask(state, word, mask)
 
     return env.words[agent(state, "cpu")[0]]
 

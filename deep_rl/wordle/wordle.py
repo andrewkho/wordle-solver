@@ -1,3 +1,4 @@
+import os
 from typing import Optional, List
 
 import gym
@@ -7,7 +8,10 @@ import numpy as np
 import wordle.state
 from wordle.const import WORDLE_N, REWARD
 
-VALID_WORDS_PATH = '../data/wordle_words.txt'
+CUR_PATH = os.environ.get('PYTHONPATH', '.')
+import os
+dirname = os.path.dirname(__file__)
+VALID_WORDS_PATH = f'{dirname}/../../data/wordle_words.txt'
 
 
 def _load_words(limit: Optional[int]=None) -> List[str]:

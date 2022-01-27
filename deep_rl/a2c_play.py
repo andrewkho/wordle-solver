@@ -1,7 +1,6 @@
 import fire
 
 import a2c.play
-import wordle.state
 
 
 def main(
@@ -48,7 +47,7 @@ def suggest(agent, env):
                 assert all(i in (0, 1, 2) for i in mask_arr)
                 assert len(mask_arr) == 5
 
-                word_masks.append((word, mask))
+                word_masks.append((word, mask_arr))
             except:
                 print(f"Failed to parse {word_mask}!")
                 continue

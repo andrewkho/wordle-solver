@@ -1,1 +1,1 @@
-web: gunicorn app:app
+web: gunicorn --pythonpath deep_rl app:app
