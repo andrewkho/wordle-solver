@@ -15,7 +15,7 @@ function formatResponse() {
 function GoalWord() {
   const [isLoading, setLoading] = useState(false);
   const [goalWord, setGoalWord] = useState("slink");
-  const [guesses, setGuesses] = useState(["test1", "test2", "test3"]);
+  const [guesses, setGuesses] = useState([]);
   const [error, setError] = useState(null);
   const [won, setWon] = useState(false);
 
@@ -26,10 +26,16 @@ function GoalWord() {
         if (!response.ok) {
           setGuesses([])
           setWon(false)
-          setError("Uh oh!")
-          var msg = response.json().msg;
-          setError(msg);
-          throw new Error(msg);
+          try {
+            var msg = response.json().msg;
+            setError(msg);
+            throw new Error(msg);
+          } catch {
+            setError("Maybe it was invalid or not 5 chars?");
+            console.error("Unknown error caught")
+            throw new Error("Unknown error");
+          }
+
         }
         return response.json();
       }).then(resp => {
@@ -72,7 +78,10 @@ function GoalWord() {
     }
   };
 
-  const handleClick = () => setLoading(true);
+  const handleClick = (e) => {
+    e.preventDefault();
+    setLoading(true);
+  }
 
     return (
     <center>
@@ -82,27 +91,18 @@ function GoalWord() {
         <br/>
         Enter a Goal Word
         <br/>
-          <Row>
-          <Col sm={9}>
-          <Form>
+          <Form disabled={isLoading} onSubmit={!isLoading ? handleClick: null}>
             <Form.Group>
-              <Form.Control
-                  value={goalWord}
-                  onChange={e => setGoalWord(e.target.value)}
-              placeholder={goalWord} />
+            <Row>
+            <Col sm={8}>
+              <Form.Control value={goalWord} onChange={e => setGoalWord(e.target.value)} placeholder={goalWord} />
+            </Col>
+            <Col sm={4}>
+            <Button variant="primary" disabled={isLoading}> {isLoading ? 'Waking up...' : 'Submit'} </Button>
+            </Col>
+              </Row>
             </Form.Group>
           </Form>
-            </Col>
-            <Col sm={2}>
-            <Button
-              variant="primary"
-              disabled={isLoading}
-              onClick={!isLoading ? handleClick : null}
-            >
-              {isLoading ? 'Waking up...' : 'Submit'}
-            </Button>
-            </Col>
-          </Row>
         {renderResult()}
         </Container>
       </div>
