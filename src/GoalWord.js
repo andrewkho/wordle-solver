@@ -5,24 +5,6 @@ import './App.css';
 
 import NavBar from './NavBar';
 
-//class GoalWord extends React.Component {
-//  constructor(props) {
-//    super(props);
-//    this.state = {value: ''};
-//
-//    this.handleChange = this.handleChange.bind(this);
-//    this.handleSubmit = this.handleSubmit.bind(this);
-//  }
-//
-//  handleChange(event) {
-//    this.setState({value: event.target.value});
-//  }
-//
-//  handleSubmit(event) {
-//    alert('A name was submitted: ' + this.state.value);
-//    event.preventDefault();
-//  }
-
 function simulateNetworkRequest() {
   return new Promise((resolve) => setTimeout(resolve, 1000));
 }
@@ -96,14 +78,5 @@ function simulateNetworkRequest() {
       </div>
     );
   }
-//              <Form.Label>Enter a Goal Word</Form.Label>
-//      <form onSubmit={this.handleSubmit}>
-//        <label>
-//          Name:
-//          <input type="Goal word" value={this.state.value} onChange={this.handleChange} />
-//        </label>
-//        <input type="submit" value="Submit" />
-//      </form>
-
 
 export default GoalWord;
