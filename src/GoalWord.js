@@ -5,13 +5,6 @@ import './App.css';
 
 import NavBar from './NavBar';
 
-function simulateNetworkRequest() {
-  return new Promise((resolve) => setTimeout(resolve, 1000));
-}
-
-function formatResponse() {
-}
-
 function GoalWord() {
   const [isLoading, setLoading] = useState(false);
   const [goalWord, setGoalWord] = useState("slink");
@@ -21,13 +14,15 @@ function GoalWord() {
 
   useEffect(() => {
     if (isLoading) {
-      fetch("/api/wordle-goal/" + goalWord)
+      fetch("http://localhost:8000/api/wordle-goal/" + goalWord)
       .then(response => {
         if (!response.ok) {
           setGuesses([])
           setWon(false)
           try {
-            var msg = response.json().msg;
+            var resp = response.json();
+            var msg = resp.msg;
+            //var msg = response.text();
             setError(msg);
             throw new Error(msg);
           } catch {
@@ -96,7 +91,9 @@ function GoalWord() {
             <Form.Group>
             <Row>
             <Col md={6} lg={8}>
-              <Form.Control value={goalWord} onChange={e => setGoalWord(e.target.value)} placeholder={goalWord} />
+              <Form.Control
+                 onChange={e => setGoalWord(e.target.value)}
+                 placeholder={goalWord} />
             </Col>
             <Col md={6} lg={4}>
             <div className="d-grid gap-0">

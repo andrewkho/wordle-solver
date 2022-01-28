@@ -84,8 +84,6 @@ class AdvantageActorCritic(LightningModule):
         self._last_loss = []
         self._seq = []
 
-        print(self.hparams.prob_play_lost_word)
-
         self._recent_losing_words = collections.deque(maxlen=1000)
 
         self.state = self.env.reset()

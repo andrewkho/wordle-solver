@@ -1,6 +1,7 @@
 import os
 
 import flask
+from flask_cors import CORS
 
 import a2c.play
 
@@ -13,6 +14,7 @@ CHECKPOINT_PATH = 'checkpoints/a2c_deployed.ckpt'
 
 app = flask.Flask(__name__, static_folder='../build/', static_url_path='/')
 app.debug = 'DEBUG' in os.environ
+CORS(app)
 
 
 @app.route('/', defaults={'path': ''})
@@ -65,10 +67,14 @@ def wordle_goal(goal_word: str):
 @app.route('/api/wordle-suggest', methods=['GET'])
 def suggest():
     words = flask.request.args['words'].split(',')
+    masks = flask.request.args['masks'].split(',')
+    if len(words) == 1 and len(words[0].strip()) == 0:
+        words = []
+    if len(masks) == 1 and len(masks[0].strip()) == 0:
+        masks = []
+
     if len(words) > 6 or any(not _word_is_valid(w) for w in words):
         return {"msg": "words are invalid!"}, 400
-
-    masks = flask.request.args['masks'].split(',')
     if len(masks) != len(words) or any(not _validate_mask(m) for m in masks):
         return {"msg": "masks are invalid!"}, 400
 
@@ -83,6 +89,7 @@ def suggest():
 
         suggestion = a2c.play.suggest(AGENT, ENV, sequence=seq)
     except Exception as e:
+        print("Caught exception", str(e))
         return str(e), 403
 
     return {
