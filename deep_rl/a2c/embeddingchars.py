@@ -6,11 +6,13 @@ from torch import nn
 
 
 class EmbeddingChars(nn.Module):
-    def __init__(self, obs_size: int,
+    def __init__(self,
+                 obs_size: int,
                  word_list: List[str],
-                 n_hidden: int = 0,
+                 n_hidden: int = 1,
                  hidden_size: int = 256,
-                 embedding_dim: int=4):
+                 n_emb: int = 32,
+                 ):
         """
         Args:
             obs_size: observation/state size of the environment
@@ -19,37 +21,44 @@ class EmbeddingChars(nn.Module):
         """
         super().__init__()
         word_width = 26*5
-        self.embedding_layer = nn.Embedding(num_embeddings=obs_size,
-                                            embedding_dim=embedding_dim)
+        self.n_emb = n_emb
+
         layers = [
-            nn.Linear(obs_size*embedding_dim, hidden_size),
+            nn.Linear(obs_size, hidden_size),
             nn.ReLU(),
         ]
         for _ in range(n_hidden):
             layers.append(nn.Linear(hidden_size, hidden_size))
             layers.append(nn.ReLU())
-        layers.append(nn.Linear(hidden_size, word_width))
-        layers.append(nn.ReLU())
+        layers.append(nn.Linear(hidden_size, self.n_emb))
 
-        self.f0 = nn.Sequential(*layers)
-        word_array = np.zeros((word_width, len(word_list)))
+        self.f_state = nn.Sequential(*layers)
+
+        self.actor_head = nn.Linear(self.n_emb, self.n_emb)
+        self.critic_head = nn.Linear(self.n_emb, 1)
+
+        word_array = np.zeros((len(word_list), word_width))
         for i, word in enumerate(word_list):
             for j, c in enumerate(word):
-                word_array[j*26 + (ord(c) - ord('A')), i] = 1
+                word_array[i, j*26 + (ord(c) - ord('A'))] = 1
         self.words = torch.Tensor(word_array)
 
-        self.actor_head = nn.Linear(word_width, word_width)
-        self.critic_head = nn.Linear(word_width, 1)
+        # W x word_width -> W x emb
+        self.f_word = nn.Sequential(
+            nn.Linear(word_width, 64),
+            nn.ReLU(),
+            nn.Linear(64, self.n_emb),
+        )
 
     def forward(self, x):
-        emb = self.embedding_layer(x.int())
-        y = self.f0(emb.view(x.shape[0], x.shape[1]*self.embedding_layer.embedding_dim))
+        fs = self.f_state(x.float())
+        fw = self.f_word(self.words).transpose(0, 1)
+
         a = torch.log_softmax(
-            torch.tensordot(self.actor_head(y),
-                            self.words.to(self.get_device(y)),
+            torch.tensordot(self.actor_head(fs), fw,
                             dims=((1,), (0,))),
             dim=-1)
-        c = self.critic_head(y)
+        c = self.critic_head(fs)
         return a, c
 
     def get_device(self, batch) -> str:
