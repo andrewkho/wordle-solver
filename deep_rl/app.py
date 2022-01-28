@@ -14,7 +14,7 @@ CHECKPOINT_PATH = 'checkpoints/a2c_deployed.ckpt'
 app = flask.Flask(__name__, static_folder='../build/', static_url_path='/')
 app.debug = 'DEBUG' in os.environ
 
-if S3_BUCKET_NAME:
+if not S3_BUCKET_NAME:
     # We are probably running locally so enable cors
     from flask_cors import CORS
     CORS(app)
