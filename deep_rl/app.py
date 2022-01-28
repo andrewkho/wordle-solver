@@ -1,7 +1,6 @@
 import os
 
 import flask
-from flask_cors import CORS
 
 import a2c.play
 
@@ -14,7 +13,6 @@ CHECKPOINT_PATH = 'checkpoints/a2c_deployed.ckpt'
 
 app = flask.Flask(__name__, static_folder='../build/', static_url_path='/')
 app.debug = 'DEBUG' in os.environ
-CORS(app)
 
 
 @app.route('/', defaults={'path': ''})
