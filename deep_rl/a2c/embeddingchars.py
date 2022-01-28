@@ -52,7 +52,9 @@ class EmbeddingChars(nn.Module):
 
     def forward(self, x):
         fs = self.f_state(x.float())
-        fw = self.f_word(self.words).transpose(0, 1)
+        fw = self.f_word(
+            self.words.to(self.get_device(x)),
+        ).transpose(0, 1)
 
         a = torch.log_softmax(
             torch.tensordot(self.actor_head(fs), fw,
