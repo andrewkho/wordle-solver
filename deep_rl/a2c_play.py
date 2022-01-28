@@ -52,6 +52,15 @@ def suggest(agent, env):
                 continue
 
 
+def state_string(state):
+    result = f'remaining turns: {state[0]}\n'
+    tried = state[1:27]
+    x = state[27:].reshape(26, 5, 3).argmax(axis=2)
+    return result + '\n'.join(
+        f'{chr(ord("A") + i)}: {tried[i]}: {"".join(str(y) for y in row)}' for i, row in enumerate(x)
+    )
+
+
 def goal(agent, env):
     print("Goal word mode")
     while True:
@@ -60,8 +69,9 @@ def goal(agent, env):
             win, outcomes = a2c.play.goal(agent, env, goal_word)
 
             i = 0
-            for guess, reward in outcomes:
+            for guess, reward, state in outcomes:
                 print(f"Turn {i+1}: {guess}, reward ({reward})")
+                print(state_string(state))
                 i += 1
 
             if win:

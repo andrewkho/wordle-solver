@@ -61,7 +61,7 @@ def goal(
     for i in range(env.max_turns):
         action = agent(state, "cpu")[0]
         state, reward, done, _ = env.step(action)
-        outcomes.append((env.words[action], reward))
+        outcomes.append((env.words[action], reward, state.copy()))
         if done:
             if reward >= 0:
                 win = True
