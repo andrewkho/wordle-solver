@@ -38,7 +38,7 @@ class AdvantageActorCritic(LightningModule):
             entropy_beta: float,
             critic_beta: float,
             epoch_len: int,
-            prob_play_lost_word: float,
+            prob_play_lost_word: float=0.,
             **kwargs: Any,
     ) -> None:
         """
