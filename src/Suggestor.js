@@ -112,6 +112,10 @@ function Suggestor() {
         </Form>
         <br/>
         {error != null ? "Error! " + error : suggestion.length > 0 ? "I suggest " + suggestion: ""}
+        <br/>
+        <Button
+          variant="secondary"
+          href="/"> Want to try giving me a goal word? </Button>
       </div>
     </center>);
 }

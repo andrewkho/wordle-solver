@@ -92,8 +92,9 @@ function GoalWord() {
             <Row>
             <Col md={6} lg={8}>
               <Form.Control
-                 onChange={e => setGoalWord(e.target.value)}
-                 placeholder={goalWord} />
+                value={goalWord}
+                onChange={e => setGoalWord(e.target.value)}
+                placeholder={goalWord} />
             </Col>
             <Col md={6} lg={4}>
             <div className="d-grid gap-0">
@@ -109,6 +110,10 @@ function GoalWord() {
           </Form>
           <br/>
         {renderResult()}
+        <br/>
+        <Button
+          variant="secondary"
+          href="/suggestor"> Want to me to suggest a word?</Button>
         </div>
       </center>
     );
