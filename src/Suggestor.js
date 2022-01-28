@@ -35,7 +35,7 @@ function Suggestor() {
 
   useEffect(() => {
     if (isLoading) {
-      var url = "http://localhost:8000/api/wordle-suggest?";
+      var url = "/api/wordle-suggest?";
       try {
         const [ words, masks ] = processWordMasks(wordMasks);
         url += "words=" + words.join(",");

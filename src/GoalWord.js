@@ -14,7 +14,7 @@ function GoalWord() {
 
   useEffect(() => {
     if (isLoading) {
-      fetch("http://localhost:8000/api/wordle-goal/" + goalWord)
+      fetch("/api/wordle-goal/" + goalWord)
       .then(response => {
         if (!response.ok) {
           setGuesses([])
