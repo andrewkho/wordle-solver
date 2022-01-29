@@ -111,6 +111,7 @@ def _startup():
     print(f"Startup: Loading checkpoint from {url}...")
     _, AGENT, ENV = a2c.play.load_from_checkpoint(url)
     print("done!")
+    print("Mask Based State Updates:", ENV.mask_based_state_updates)
 
 
 _startup()
