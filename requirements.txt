@@ -30,7 +30,7 @@ jmespath==0.10.0
 Markdown==3.3.6
 MarkupSafe==2.0.1
 multidict==6.0.2
-newrelic==7.4.0
+newrelic==7.4.0.172
 numpy==1.22.1
 oauthlib==3.1.1
 packaging==21.3
