@@ -43,11 +43,13 @@ class WordleEnvBase(gym.Env):
     def __init__(self, words: List[str],
                  max_turns: int,
                  allowable_words: Optional[int] = None,
-                 frequencies: Optional[List[float]]=None):
+                 frequencies: Optional[List[float]]=None,
+                 mask_based_state_updates: bool=False):
         assert all(len(w) == WORDLE_N for w in words), f'Not all words of length {WORDLE_N}, {words}'
         self.words = words
         self.max_turns = max_turns
         self.allowable_words = allowable_words
+        self.mask_based_state_updates = mask_based_state_updates
         if not self.allowable_words:
             self.allowable_words = len(self.words)
 
@@ -63,6 +65,9 @@ class WordleEnvBase(gym.Env):
         self.goal_word: int = -1
 
         self.state: wordle.state.WordleState = None
+        self.state_updater = wordle.state.update
+        if self.mask_based_state_updates:
+            self.state_updater = wordle.state.update_mask
 
     def step(self, action: int):
         if self.done:
@@ -72,9 +77,9 @@ class WordleEnvBase(gym.Env):
                 "should always call 'reset()' once you receive 'done = "
                 "True' -- any further steps are undefined behavior."
             )
-        self.state = wordle.state.update(state=self.state,
-                                         word=self.words[action],
-                                         goal_word=self.words[self.goal_word])
+        self.state = self.state_updater(state=self.state,
+                                        word=self.words[action],
+                                        goal_word=self.words[self.goal_word])
 
         reward = 0
         if action == self.goal_word:
@@ -135,6 +140,12 @@ class WordleEnv1000(WordleEnvBase):
         super().__init__(words=_load_words(1000), max_turns=6)
 
 
+class WordleEnv1000WithMask(WordleEnvBase):
+    def __init__(self):
+        super().__init__(words=_load_words(1000), max_turns=6,
+                         mask_based_state_updates=True)
+
+
 class WordleEnv1000FullAction(WordleEnvBase):
     def __init__(self):
         super().__init__(words=_load_words(), allowable_words=1000, max_turns=6)
@@ -148,3 +159,9 @@ class WordleEnvFull(WordleEnvBase):
 class WordleEnvReal(WordleEnvBase):
     def __init__(self):
         super().__init__(words=_load_words(), allowable_words=2315, max_turns=6)
+
+
+class WordleEnvRealWithMask(WordleEnvBase):
+    def __init__(self):
+        super().__init__(words=_load_words(), allowable_words=2315, max_turns=6,
+                         mask_based_state_updates=True)

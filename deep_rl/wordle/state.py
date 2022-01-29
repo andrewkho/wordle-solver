@@ -99,7 +99,31 @@ def update_from_mask(state: WordleState, word: str, mask: List[int]) -> WordleSt
     return state
 
 
-def update(state: WordleState, word: str, goal_word: str) -> WordleState:
+def get_mask(word: str, goal_word: str) -> List[int]:
+    # Definite yesses first
+    mask = [0, 0, 0, 0, 0]
+    counts = collections.Counter(goal_word)
+    for i, c in enumerate(word):
+        if goal_word[i] == c:
+            mask[i] = 2
+            counts[c] -= 1
+
+    for i, c in enumerate(word):
+        if mask[i] == 2:
+            continue
+        elif c in counts:
+            if counts[c] > 0:
+                mask[i] = 1
+                counts[c] -= 1
+            else:
+                for j in range(i+1, len(mask)):
+                    if mask[j] == 2:
+                        continue
+                    mask[j] = 0
+
+    return mask
+
+def update_mask(state: WordleState, word: str, goal_word: str) -> WordleState:
     """
     return a copy of state that has been updated to new state
 
@@ -108,6 +132,11 @@ def update(state: WordleState, word: str, goal_word: str) -> WordleState:
     :param goal_word:
     :return:
     """
+    mask = get_mask(word, goal_word)
+    return update_from_mask(state, word, mask)
+
+
+def update(state: WordleState, word: str, goal_word: str) -> WordleState:
     state = state.copy()
 
     state[0] -= 1
