@@ -15,9 +15,8 @@ def main(
         goal(agent, env)
     elif mode == 'suggest':
         suggest(agent, env)
-    elif mode == 'wordle-site':
-        #play_wordle_site()
-        pass
+    elif mode == 'evaluate':
+        evaluate(agent, env)
 
 
 def suggest(agent, env):
@@ -72,6 +71,25 @@ def goal(agent, env):
         except Exception as e:
             print(e)
             continue
+
+
+def evaluate(agent, env):
+    print("Evaluation mode")
+    n_wins = 0
+    n_guesses = 0
+    n_win_guesses = 0
+    N = env.allowable_words
+    for goal_word in env.words[:N]:
+        win, outcomes = a2c.play.goal(agent, env, goal_word)
+        if win:
+            n_wins += 1
+            n_win_guesses += len(outcomes)
+        else:
+            print("Lost!", goal_word, outcomes)
+        n_guesses += len(outcomes)
+
+    print(f"Evaluation complete, won {n_wins/N}% and took {n_win_guesses/n_wins} guesses per win, "
+          f"{n_guesses / N} including losses.")
 
 
 if __name__ == '__main__':
