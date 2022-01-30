@@ -43,15 +43,15 @@ const (
 type Result [WordleN]RuneOutcome
 type Wordle string
 
-func getResult(w0 Wordle, w1 Wordle) Result {
+func getResult(guess Wordle, evalWord Wordle) Result {
 	result := Result{}
 	Word0: 
-	for i, c0 := range w0 {
-		if rune(w1[i]) == c0 {
+	for i, c0 := range guess {
+		if rune(evalWord[i]) == c0 {
 			result[i] = Yes
 			continue
 		}
-		for j, c1 := range w1 {
+		for j, c1 := range evalWord {
 			if c1 == c0 && j != i {
 				result[i] = Maybe
 				continue Word0
@@ -63,24 +63,24 @@ func getResult(w0 Wordle, w1 Wordle) Result {
 	return result
 }
 
-func getOutcomes(word Wordle, testWords []Wordle) map[Result][]Wordle {
+func getOutcomes(guess Wordle, remainingWords []Wordle) map[Result][]Wordle {
 	results := make(map[Result][]Wordle)
-	for _, test := range testWords {
-		res := getResult(word, test)
-		results[res] = append(results[res], test)
+	for _, evalWord := range remainingWords {
+		res := getResult(guess, evalWord)
+		results[res] = append(results[res], evalWord)
 	}
 	return results
 }
 
-func minimax(words []Wordle, testWords []Wordle) (Wordle, int, map[Result][]Wordle) {
+func minimax(candidates []Wordle, remainingWords []Wordle, verbose bool) (Wordle, int, map[Result][]Wordle) {
 	bst := 1<<63-1
-	bstWord := Wordle("     ")
+	bstGuess := Wordle("     ")
 	bstOutcomes := map[Result][]Wordle{}
-	for i, word := range words {
-		if i % 1000 == 0 {
-			fmt.Println("i:", i, word)
+	for i, guess := range candidates {
+		if verbose && (i % 1000 == 0) {
+			fmt.Println("i:", i, guess)
 		}
-		outcomes := getOutcomes(word, testWords)
+		outcomes := getOutcomes(guess, remainingWords)
 		worst := 0
 		for _, v := range outcomes {
 			if len(v) > worst {
@@ -89,39 +89,76 @@ func minimax(words []Wordle, testWords []Wordle) (Wordle, int, map[Result][]Word
 		}
 		if worst <= bst {
 			bst = worst
-			bstWord = word
+			bstGuess = guess
 			bstOutcomes = outcomes
 		}
 	}
 
-	return bstWord, bst, bstOutcomes
+	return bstGuess, bst, bstOutcomes
 }
 
-func main() {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println(string(debug.Stack()))
-		}
-	}()
-
-	var filename string = os.Args[1]
-	t0 := time.Now()
-	fmt.Printf("Reading from %s,", filename)
-	fullWords := readWords(filename)
-	fmt.Printf(" took %v for %v words\n", time.Since(t0), len(fullWords))
-
+func playGame(goal_word Wordle, fullWords []Wordle, evalWords []Wordle) (bool, int) {
 	result := Result{}
 	outcomes := make(map[Result][]Wordle)
-	outcomes[result] = fullWords
+	outcomes[result] = evalWords
+
+	for turns := 0; turns < 6; turns++ {
+		var bstGuess Wordle
+		remainingWords := outcomes[result]
+		if len(remainingWords) == 1 {
+			return true, turns+1
+		} else if len(remainingWords) == 0 {
+			return false, -1
+		} 
+		candidates := fullWords
+		if turns == 0 {
+			candidates = []Wordle{"serai"}
+		}
+		bstGuess, _, outcomes = minimax(candidates, remainingWords, false)
+		
+		result = getResult(bstGuess, goal_word)
+	}
+
+	return false, 6
+}
+
+func evaluate(fullWords []Wordle, evalWords []Wordle) {
+	fmt.Printf("Evaluation mode for %v evaluation words\n", len(evalWords))
+	wins := 0
+	N := len(evalWords)
+	n_guesses := 0
+	n_win_guesses := 0
+	for i, goal_word := range evalWords {
+		if i % 100 == 0 {
+			fmt.Println("step", i)
+		}
+		win, guesses := playGame(goal_word, fullWords, evalWords)
+		if win {
+			wins++
+			n_win_guesses += guesses
+		} else {
+			fmt.Println("Lost!", goal_word)
+		}
+		n_guesses += guesses
+	}
+
+	fmt.Printf("Evaluation complete, won %v %% of games, average %v guesses for wins, %v guesses in total\n",
+		  float64(wins) / float64(N), float64(n_win_guesses) / float64(wins), float64(n_guesses) / float64(N))
+}
+
+func play(fullWords []Wordle, evalWords []Wordle) {
+	result := Result{}
+	outcomes := make(map[Result][]Wordle)
+	outcomes[result] = evalWords
 	for i := 0; true; i++ {
 		t1 := time.Now()
 		var bestWord Wordle
 		score := 0
-		testWords := outcomes[result]
-		if len(testWords) == 1 {
-			fmt.Printf("i: %v, Final word: %v\n", i, testWords[0])
+		remainingWords := outcomes[result]
+		if len(remainingWords) == 1 {
+			fmt.Printf("i: %v, Final word: %v\n", i, remainingWords[0])
 			return
-		} else if len(testWords) == 0 {
+		} else if len(remainingWords) == 0 {
 			fmt.Printf("i: %v, ran out of words!\n", i)
 			return
 		} else {
@@ -129,7 +166,7 @@ func main() {
 			if i == 0 {
 				candidates = []Wordle{"serai"}
 			}
-			bestWord, score, outcomes = minimax(candidates, testWords)
+			bestWord, score, outcomes = minimax(candidates, remainingWords, true)
 			fmt.Printf("i: %v, %v, %v, %v, %v\n", i, result, bestWord, score, time.Since(t1))
 		}
 
@@ -151,5 +188,30 @@ func main() {
 				result[j] = RuneOutcome(cint)
 			}
 		}
+	}
+
+}
+
+func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println(string(debug.Stack()))
+		}
+	}()
+
+	filename := os.Args[1]
+	mode := os.Args[2]
+	t0 := time.Now()
+	fmt.Printf("Reading from %s,", filename)
+	fullWords := readWords(filename)
+	evalWords := fullWords[:2315]
+	fmt.Printf(" took %v for %v words\n", time.Since(t0), len(fullWords))
+	fmt.Printf("Mode: %v\n", mode)
+
+	if mode == "play" {
+		play(fullWords, evalWords)
+	} else {
+		evaluate(fullWords, evalWords)
+
 	}
 }
