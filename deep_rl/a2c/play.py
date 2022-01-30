@@ -49,6 +49,7 @@ def goal(
         agent: GreedyActorCriticAgent,
         env: WordleEnvBase,
         goal_word: str,
+        include_state: bool=False,
 ) -> Tuple[bool, List[Tuple[str, int]]]:
     state = env.reset()
     try:
@@ -61,7 +62,10 @@ def goal(
     for i in range(env.max_turns):
         action = agent(state, "cpu")[0]
         state, reward, done, _ = env.step(action)
-        outcomes.append((env.words[action], reward, state.copy()))
+        if include_state:
+            outcomes.append((env.words[action], reward, state.copy()))
+        else:
+            outcomes.append((env.words[action], reward))
         if done:
             if reward >= 0:
                 win = True

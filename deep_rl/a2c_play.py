@@ -13,10 +13,14 @@ def main(
 
     if mode == 'goal':
         goal(agent, env)
+    elif mode == 'debug':
+        goal(agent, env, debug=True)
     elif mode == 'suggest':
         suggest(agent, env)
     elif mode == 'evaluate':
         evaluate(agent, env)
+    else:
+        print("valid modes are goal, suggest, evaluate")
 
 
 def suggest(agent, env):
@@ -61,7 +65,7 @@ def state_string(state):
     )
 
 
-def goal(agent, env):
+def goal(agent, env, debug=False):
     print("Goal word mode")
     while True:
         goal_word = input("Give me a goal word: ")
@@ -70,8 +74,9 @@ def goal(agent, env):
 
             i = 0
             for guess, reward, state in outcomes:
-                print(f"Turn {i+1}: {guess}, reward ({reward})")
-                print(state_string(state))
+                if debug:
+                    print(f"Turn {i+1}: {guess}, reward ({reward})")
+                    print(state_string(state))
                 i += 1
 
             if win:
