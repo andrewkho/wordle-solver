@@ -2,6 +2,7 @@ import collections
 from argparse import ArgumentParser
 from collections import OrderedDict
 from typing import Any, List, Tuple, Iterator
+import wandb
 
 import gym
 import numpy as np
@@ -39,6 +40,7 @@ class AdvantageActorCritic(LightningModule):
             critic_beta: float,
             epoch_len: int,
             prob_play_lost_word: float=0.,
+            weight_decay: float=0.,
             **kwargs: Any,
     ) -> None:
         """
@@ -243,26 +245,51 @@ class AdvantageActorCritic(LightningModule):
         loss = self.loss(states, actions, returns)
 
         if self.global_step % 50 == 0:
+            metrics = {
+                "train_loss": loss,
+                "total_games_played": self.done_episodes,
+                "lose_ratio": self._losses/(self._wins+self._losses),
+                "wins": self._wins,
+                "reward_per_game": self._total_rewards / (self._wins+self._losses),
+                "global_step": self.global_step,
+            }
+            if self._wins > 0:
+                metrics["reward_per_win"] = self._winning_rewards / self._wins
+                metrics["avg_winning_turns"] = self._winning_steps / self._wins
+
+            for k, v in metrics.items():
+                self.writer.add_scalar(k, v, global_step=self.global_step)
+
             def get_game_string(seq):
                 game = f'goal: {self.env.words[seq[0].goal_id]}\n'
                 for i, exp in enumerate(seq):
                     game += f'{i}: {self.env.words[exp.action]}\n'
                 return game
 
+            def get_table_row(seq):
+                goal = self.env.words[seq[0].goal_id]
+                guesses = ""
+                for i, exp in enumerate(seq):
+                    guesses += f'{i}: {self.env.words[exp.action]} '
+                return [goal, guesses]
+
             if len(self._last_win):
                 self.writer.add_text("last_win", get_game_string(self._last_win), global_step=self.global_step)
+                metrics["last_win"] = wandb.Table(data=[get_table_row(self._last_win)], columns=['goal', 'guesses'])
             if len(self._last_loss):
                 self.writer.add_text("last_loss", get_game_string(self._last_loss), global_step=self.global_step)
+                metrics["last_loss"] = wandb.Table(data=[get_table_row(self._last_loss)], columns=['goal', 'guesses'])
 
-            self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
-            self.writer.add_scalar("total_games_played", self.done_episodes, global_step=self.global_step)
-
-            self.writer.add_scalar("lose_ratio", self._losses/(self._wins+self._losses), global_step=self.global_step)
-            self.writer.add_scalar("wins", self._wins, global_step=self.global_step)
-            self.writer.add_scalar("reward_per_game", self._total_rewards / (self._wins+self._losses), global_step=self.global_step)
-            if self._wins > 0:
-                self.writer.add_scalar("reward_per_win", self._winning_rewards / self._wins, global_step=self.global_step)
-                self.writer.add_scalar("avg_winning_turns", self._winning_steps/self._wins, global_step=self.global_step)
+            wandb.log(metrics)
+            # self.writer.add_scalar("train_loss", loss, global_step=self.global_step)
+            # self.writer.add_scalar("total_games_played", self.done_episodes, global_step=self.global_step)
+            #
+            # self.writer.add_scalar("lose_ratio", self._losses/(self._wins+self._losses), global_step=self.global_step)
+            # self.writer.add_scalar("wins", self._wins, global_step=self.global_step)
+            # self.writer.add_scalar("reward_per_game", self._total_rewards / (self._wins+self._losses), global_step=self.global_step)
+            # if self._wins > 0:
+            #     self.writer.add_scalar("reward_per_win", self._winning_rewards / self._wins, global_step=self.global_step)
+            #     self.writer.add_scalar("avg_winning_turns", self._winning_steps/self._wins, global_step=self.global_step)
 
             self._winning_steps = 0
             self._winning_rewards = 0
@@ -283,7 +310,9 @@ class AdvantageActorCritic(LightningModule):
 
     def configure_optimizers(self) -> List[Optimizer]:
         """Initialize Adam optimizer."""
-        optimizer = optim.Adam(self.net.parameters(), lr=self.hparams.lr)
+        optimizer = optim.Adam(self.net.parameters(),
+                               lr=self.hparams.lr,
+                               weight_decay=self.hparams.weight_decay)
         return [optimizer]
 
     def _dataloader(self) -> DataLoader:
@@ -322,6 +351,7 @@ class AdvantageActorCritic(LightningModule):
         arg_parser.add_argument("--seed", type=int, default=123, help="seed for training run")
         arg_parser.add_argument("--replay_size", type=int, default=1000, help="Size of replay buffer(s)")
         arg_parser.add_argument("--prob_play_lost_word", type=float, default=0, help="Probabiilty of replaying a losing word")
+        arg_parser.add_argument("--weight_decay", type=float, default=0., help="Optimizer weight decay regularization.")
 
         arg_parser.add_argument(
             "--avg_reward_len",
