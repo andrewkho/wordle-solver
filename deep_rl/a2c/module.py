@@ -40,6 +40,7 @@ class AdvantageActorCritic(LightningModule):
             critic_beta: float,
             epoch_len: int,
             prob_play_lost_word: float=0.,
+            prob_cheat: float=0.,
             weight_decay: float=0.,
             **kwargs: Any,
     ) -> None:
@@ -87,6 +88,7 @@ class AdvantageActorCritic(LightningModule):
         self._seq = []
 
         self._recent_losing_words = collections.deque(maxlen=1000)
+        self._cheat_word = None
 
         self.state = self.env.reset()
 
@@ -126,6 +128,8 @@ class AdvantageActorCritic(LightningModule):
             batch_targets = []
             for _ in range(self.hparams.batch_size):
                 action = self.agent(self.state, self.device)[0]
+                if wordle.state.remaining_steps(self.state) == 1 and self._cheat_word:
+                    action = self._cheat_word
 
                 next_state, reward, done, aux = self.env.step(action)
 
@@ -155,10 +159,13 @@ class AdvantageActorCritic(LightningModule):
                     self.done_episodes += 1
                     # With some probability, override the word with one that we lost recently
                     self.state = self.env.reset()
+                    self._cheat_word = None
                     if len(self._recent_losing_words) > 0:
                         if np.random.random() < self.hparams.prob_play_lost_word:
                             lost_idx = int(np.random.random()*len(self._recent_losing_words))
                             self.env.set_goal_id(self._recent_losing_words[lost_idx])
+                            if np.random.random() < self.hparams.prob_cheat:
+                                self._cheat_word = self._recent_losing_words[lost_idx]
 
                     self.episode_reward = 0
 
@@ -351,6 +358,7 @@ class AdvantageActorCritic(LightningModule):
         arg_parser.add_argument("--seed", type=int, default=123, help="seed for training run")
         arg_parser.add_argument("--replay_size", type=int, default=1000, help="Size of replay buffer(s)")
         arg_parser.add_argument("--prob_play_lost_word", type=float, default=0, help="Probabiilty of replaying a losing word")
+        arg_parser.add_argument("--prob_cheat", type=float, default=0, help="Probability of cheating when playing lost word")
         arg_parser.add_argument("--weight_decay", type=float, default=0., help="Optimizer weight decay regularization.")
 
         arg_parser.add_argument(
