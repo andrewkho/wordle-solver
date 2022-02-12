@@ -1,0 +1,11 @@
+awscli==1.22.24
+torch==1.8.1
+pytorch-lightning==1.5.8
+aiobotocore==2.1.0
+gym==0.21.0
+fire==0.4.0
+newrelic==7.4.0.172
+wandb==0.12.10
+gunicorn==20.1.0
+Flask==2.0.2
+Flask-Cors==3.0.10
