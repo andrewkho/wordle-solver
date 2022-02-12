@@ -15,6 +15,10 @@ To update requirements
 ```
 pip install -r server-requires.txt
 pip freeze > requirements.txt
+# The first line of requirements.txt needs to be 
+# -f https://download.pytorch.org/whl/torch_stable.html
+# and then the torch==1.8.1+cpu in order to keep the
+# heroku slug-size below 500mb
 ```
 
 Local dev
