@@ -9,3 +9,4 @@ wandb==0.12.10
 gunicorn==20.1.0
 Flask==2.0.2
 Flask-Cors==3.0.10
+s3fs==2022.1.0
