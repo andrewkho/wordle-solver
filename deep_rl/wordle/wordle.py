@@ -125,6 +125,12 @@ class WordleEnv100OneAction(WordleEnvBase):
         super().__init__(words=_load_words(100), allowable_words=1, max_turns=6)
 
 
+class WordleEnv100WithMask(WordleEnvBase):
+    def __init__(self):
+        super().__init__(words=_load_words(100), max_turns=6,
+                         mask_based_state_updates=True)
+
+
 class WordleEnv100TwoAction(WordleEnvBase):
     def __init__(self):
         super().__init__(words=_load_words(100), allowable_words=2, max_turns=6)

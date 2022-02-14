@@ -41,6 +41,12 @@ register(
 )
 
 register(
+    id="WordleEnv100WithMask-v0",
+    entry_point="wordle.wordle:WordleEnv100WithMask",
+    max_episode_steps=500,
+)
+
+register(
     id="WordleEnv1000-v0",
     entry_point="wordle.wordle:WordleEnv1000",
     max_episode_steps=500,
