@@ -25,6 +25,7 @@ class ActorCriticAgent:
         # take the numpy values and randomly select action based on prob distribution
         # Note that this is much faster than numpy.random.choice
         cdf = np.cumsum(prob_np, axis=1)
+        cdf[:, -1] = 1.  # Ensure cumsum adds to 1
         select = np.random.random(cdf.shape[0])
         actions = [
             np.searchsorted(cdf[row, :], select[row])
