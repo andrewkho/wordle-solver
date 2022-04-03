@@ -11,6 +11,12 @@ source server-env/bin/activate
 pip install -r requirements.txt
 ```
 
+Node setup
+```
+nvm install 17.8.0 # node version
+npm install
+```
+
 To update requirements
 ```
 pip install -r server-requires.txt
