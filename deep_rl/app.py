@@ -60,10 +60,11 @@ def wordle_goal(goal_word: str):
         win, outcomes = a2c.play.goal(AGENT, ENV, goal_word)
     except Exception as e:
         return str(e), 403
+    guesses, rewards = list(zip(*outcomes))
     return {
         "win": win,
-        "guesses": [guess for guess, _ in outcomes],
-        "rewards": [reward for _, reward in outcomes],
+        "guesses": guesses,
+        "rewards": rewards,
     }
 
 
