@@ -17,8 +17,8 @@
     "npm-watch": "^0.6.0"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "react-scripts --openssl-legacy-provider start",
+    "build": "react-scripts --openssl-legacy-provider build",
     "start-local": "react-scripts --openssl-legacy-provider start",
     "build-local": "react-scripts --openssl-legacy-provider build",
     "test": "react-scripts test --env=jsdom",
