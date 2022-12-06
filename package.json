@@ -10,6 +10,9 @@
     "react-router-dom": "^6.2.1",
     "react-scripts": "^3.4.1"
   },
+  "engines": {
+    "node": "18.x"
+  },
   "devDependencies": {
     "npm-watch": "^0.6.0"
   },
